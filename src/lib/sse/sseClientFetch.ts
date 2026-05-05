@@ -60,6 +60,8 @@ export class SSEReadableClient {
     this.onConnected = callbacks.onConnected;
   }
 
+  private firstDataReceived = false;
+
   connect() {
     if (this.isConnecting || this.abortController) {
       return;
@@ -67,6 +69,7 @@ export class SSEReadableClient {
 
     this.isConnecting = true;
     this.isManualStop = false;
+    this.firstDataReceived = false;
 
     const fullUrl = this.deviceSn
       ? `${this.url}/${this.deviceSn}`
@@ -182,6 +185,13 @@ export class SSEReadableClient {
   private handleDataEvent(data: string) {
     try {
       const json = JSON.parse(data);
+
+      // If we receive any data, connection is established
+      // (backend doesn't send explicit "connected" event)
+      if (!this.firstDataReceived) {
+        this.firstDataReceived = true;
+        this.onConnected?.(0);
+      }
 
       switch (this.currentEventType) {
         case "connected":
