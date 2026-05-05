@@ -14,13 +14,15 @@ import { deviceApi } from "@/lib/api/devices";
 import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-// SSE endpoint: /telemetry/devices/all/stream for all devices
-// or /telemetry/devices/:device_sn/stream for single device
+// SSE endpoint: /telemetry/stream for all devices
+// or /telemetry/stream/:device_sn for single device
 const SSE_BASE = `${API_BASE}/telemetry/stream`;
 
 // Helper to build SSE URL for specific device
+// /telemetry/stream -> all devices
+// /telemetry/stream/:device_sn -> specific device
 export const getSSEUrl = (deviceSn?: string) =>
-  deviceSn ? `${SSE_BASE}/${deviceSn}` : `${SSE_BASE}/all/stream`;
+  deviceSn ? `${SSE_BASE}/${deviceSn}` : SSE_BASE;
 
 const TIME_PRESETS = [
   { label: "1 Jam", hours: 1 },

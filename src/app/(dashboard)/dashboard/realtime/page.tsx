@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/collapsible";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-// SSE endpoint: /telemetry/devices/all/stream for all devices
+// SSE endpoint: /telemetry/stream for all devices
+// or /telemetry/stream/:device_sn for single device
 const SSE_URL = `${API_BASE}/telemetry/stream`;
 
 interface DeviceCardData extends SSEDeviceData {
