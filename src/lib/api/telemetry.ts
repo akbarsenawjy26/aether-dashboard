@@ -16,11 +16,10 @@ export interface HistoryRequest {
   window?: string;
 }
 
-export interface HistoryResponse {
-  device_sn: string;
-  columns: string[];
-  values: (string | number)[][];
-  row_count: number;
+// Backend returns { device_sn: string, data: TelemetryRecord[] }
+export interface TelemetryRecord {
+  timestamp: string;
+  fields: Record<string, number | string | boolean>;
 }
 
 export const telemetryApi = {
@@ -30,8 +29,9 @@ export const telemetryApi = {
     timestamp?: string;
   }) => apiClient.post("/telemetry", data),
 
+  // Backend returns { device_sn, data: TelemetryRecord[] } directly (no success wrapper)
   history: (deviceSn: string, data: HistoryRequest) =>
-    apiClient.post<{ success: true; data: HistoryResponse }>(
+    apiClient.post<{ device_sn: string; data: TelemetryRecord[] }>(
       `/telemetry/history/${deviceSn}`,
       data
     ),

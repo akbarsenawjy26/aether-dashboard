@@ -108,36 +108,40 @@ export default function DeviceDetailPage() {
   // Fetch history data
   const fetchHistory = useCallback(async () => {
     if (!deviceSn) return;
-    
+
     setHistoryLoading(true);
     try {
       const end = new Date();
       const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
-      
+
       const response = await telemetryApi.history(deviceSn, {
         start: start.toISOString(),
         stop: end.toISOString(),
         limit: 500,
         order: "desc",
       });
-      
+
       const historyData = response.data.data;
-      
-      if (historyData) {
-        // Transform to chart format
-        const transformed = historyData.values.map((row) => {
-          const obj: Record<string, unknown> = {};
-          historyData.columns.forEach((col, i) => {
-            obj[col] = row[i];
-          });
-          return obj;
-        }).reverse();
-        
+
+      if (historyData && Array.isArray(historyData)) {
+        // Transform TelemetryRecord[] to chart format
+        // Backend format: { timestamp: string, fields: { key: value } }
+        // Chart format: { timestamp: string, key: value, ... }
+        const transformed = historyData
+          .map((record) => ({
+            timestamp: record.timestamp,
+            ...record.fields,
+          }))
+          .reverse();
+
         setChartData(transformed);
-        
-        const series = historyData.columns.filter(
-          (c) => c !== "timestamp" && c !== "device_sn"
-        );
+
+        // Collect all unique field keys as series
+        const fieldKeys = new Set<string>();
+        historyData.forEach((record) => {
+          Object.keys(record.fields).forEach((key) => fieldKeys.add(key));
+        });
+        const series = Array.from(fieldKeys);
         setAvailableSeries(series);
         setSelectedSeries([]);
       }

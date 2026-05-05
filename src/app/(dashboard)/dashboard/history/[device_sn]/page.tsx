@@ -54,20 +54,27 @@ export default function HistoryPage() {
     staleTime: 30000,
   });
 
-  // Transform InfluxDB response to chart format
+  // Transform TelemetryRecord[] to chart format
+  // Backend format: { timestamp: string, fields: { key: value } }[]
+  // Chart format: { timestamp: string, key: value, ... }[]
   const chartData = historyData
-    ? historyData.values.map((row) => {
-        const obj: Record<string, unknown> = {};
-        historyData.columns.forEach((col, i) => {
-          obj[col] = row[i];
-        });
-        return obj;
-      }).reverse()
+    ? historyData
+        .map((record) => ({
+          timestamp: record.timestamp,
+          ...record.fields,
+        }))
+        .reverse()
     : [];
 
-  const availableSeries = historyData?.columns.filter(
-    (c) => c !== "timestamp" && c !== "device_sn"
-  ) ?? [];
+  // Collect all unique field keys as series
+  const availableSeries = historyData
+    ? Array.from(
+        historyData.reduce<Set<string>>((keys, record) => {
+          Object.keys(record.fields).forEach((k) => keys.add(k));
+          return keys;
+        }, new Set())
+      )
+    : [];
 
   const toggleSeries = (series: string) => {
     setSelectedSeries((prev) =>
@@ -78,10 +85,19 @@ export default function HistoryPage() {
   };
 
   const handleExportCSV = () => {
-    if (!historyData) return;
-    const header = historyData.columns.join(",");
-    const rows = historyData.values.map((row) => row.join(",")).join("\n");
-    const csv = `${header}\n${rows}`;
+    if (!historyData || historyData.length === 0) return;
+    const header = ["timestamp", ...availableSeries];
+    const rows = historyData
+      .map((record) => {
+        const values = [record.timestamp];
+        availableSeries.forEach((key) => {
+          const val = record.fields[key];
+          values.push(val !== undefined ? String(val) : "");
+        });
+        return values.join(",");
+      })
+      .join("\n");
+    const csv = `${header.join(",")}\n${rows}`;
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -176,7 +192,7 @@ export default function HistoryPage() {
         <CardHeader>
           <CardTitle>Grafik Telemetry</CardTitle>
           <CardDescription>
-            {historyData ? `${historyData.row_count} data points` : "Memuat..."}
+            {historyData ? `${chartData.length} data points` : "Memuat..."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -243,7 +259,7 @@ export default function HistoryPage() {
       </Card>
 
       {/* Data Table */}
-      {historyData && historyData.row_count > 0 && (
+      {historyData && historyData.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Data Table</CardTitle>
@@ -252,7 +268,10 @@ export default function HistoryPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b">
-                  {historyData.columns.map((col) => (
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                    timestamp
+                  </th>
+                  {availableSeries.map((col) => (
                     <th key={col} className="px-4 py-2 text-left font-medium text-muted-foreground">
                       {col}
                     </th>
@@ -260,20 +279,30 @@ export default function HistoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {historyData.values.slice(0, 50).map((row, i) => (
+                {historyData.slice(0, 50).map((record, i) => (
                   <tr key={i} className="border-b">
-                    {row.map((cell, j) => (
-                      <td key={j} className="px-4 py-2 font-mono text-xs">
-                        {typeof cell === "number" ? cell.toFixed(4) : String(cell)}
-                      </td>
-                    ))}
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {record.timestamp}
+                    </td>
+                    {availableSeries.map((key) => {
+                      const val = record.fields[key];
+                      return (
+                        <td key={key} className="px-4 py-2 font-mono text-xs">
+                          {val !== undefined
+                            ? typeof val === "number"
+                              ? val.toFixed(4)
+                              : String(val)
+                            : "-"}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
-            {historyData.row_count > 50 && (
+            {historyData.length > 50 && (
               <p className="text-xs text-muted-foreground text-center py-2">
-                Menampilkan 50 dari {historyData.row_count} data points. Export CSV untuk semua data.
+                Menampilkan 50 dari {historyData.length} data points. Export CSV untuk semua data.
               </p>
             )}
           </CardContent>
