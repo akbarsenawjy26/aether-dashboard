@@ -364,8 +364,10 @@ export class SSEReadableClient {
   }
 
   /**
-   * Flatten the grouped DevicePayload from backend into individual SSEDeviceData.
-   * Backend sends: { "environment": [{ health: {...}, telemetry: {...} }] }
+   * Flatten the payload from backend into individual SSEDeviceData.
+   * Backend sends TWO possible formats:
+   * 1. Direct (new): { health: {...}, telemetry: {...} }
+   * 2. Grouped (old): { "environment": [{ health: {...}, telemetry: {...} }] }
    * We flatten to: [{ device_sn, device_type, readings, timestamp }]
    */
   private flattenPayload(payload: unknown): SSEDeviceData[] {
@@ -374,18 +376,44 @@ export class SSEReadableClient {
     }
 
     const result: SSEDeviceData[] = [];
-    const payloadObj = payload as DevicePayload;
+    const payloadObj = payload as Record<string, unknown>;
 
+    // NEW FORMAT: Direct { health, telemetry } at root level
+    if ("health" in payloadObj && "telemetry" in payloadObj) {
+      const health = payloadObj.health as Record<string, unknown>;
+      const telemetry = payloadObj.telemetry as Record<string, unknown>;
+
+      const readings: Record<string, number> = {};
+      for (const [key, value] of Object.entries(telemetry)) {
+        if (typeof value === "number") {
+          readings[key] = value;
+        } else if (typeof value === "string") {
+          const num = parseFloat(value);
+          if (!isNaN(num)) readings[key] = num;
+        }
+      }
+
+      result.push({
+        device_sn: (health.device_sn as string) || "",
+        device_type: (health.type as string) || "unknown",
+        device_name: health.device_sn as string,
+        readings,
+        timestamp: (health.last_seen as string) || new Date().toISOString(),
+      });
+
+      return result;
+    }
+
+    // OLD FORMAT: Grouped by device type { "environment": [{ health, telemetry }] }
     for (const deviceType in payloadObj) {
       const entries = payloadObj[deviceType];
       if (!Array.isArray(entries)) continue;
 
-      for (const entry of entries) {
+      for (const entry of entries as Array<{ health?: Record<string, unknown>; telemetry?: Record<string, unknown> }>) {
         if (!entry.health || !entry.telemetry) continue;
 
         const { health, telemetry } = entry;
 
-        // Convert telemetry values to numbers
         const readings: Record<string, number> = {};
         for (const [key, value] of Object.entries(telemetry)) {
           if (typeof value === "number") {
@@ -397,11 +425,11 @@ export class SSEReadableClient {
         }
 
         result.push({
-          device_sn: health.device_sn || "",
-          device_type: health.type || deviceType,
-          device_name: health.device_sn, // Could be enhanced to use a name field
+          device_sn: (health.device_sn as string) || "",
+          device_type: (health.type as string) || deviceType,
+          device_name: health.device_sn as string,
           readings,
-          timestamp: health.last_seen || new Date().toISOString(),
+          timestamp: (health.last_seen as string) || new Date().toISOString(),
         });
       }
     }
