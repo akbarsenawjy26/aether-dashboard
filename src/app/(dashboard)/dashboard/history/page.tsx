@@ -20,7 +20,7 @@ export default function HistoryListPage() {
     queryFn: () => deviceApi.list({ limit: 1000 }).then((r) => r.data.data),
   });
 
-  const filteredDevices = devices?.items.filter((device) => {
+  const filteredDevices = (devices?.items ?? []).filter((device) => {
     const matchesSearch =
       search === "" ||
       device.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -30,7 +30,7 @@ export default function HistoryListPage() {
   });
 
   const deviceTypes = Array.from(
-    new Set(devices?.items.map((d) => d.type).filter(Boolean) ?? [])
+    new Set((devices?.items ?? []).map((d) => d.type).filter(Boolean))
   );
 
   return (
