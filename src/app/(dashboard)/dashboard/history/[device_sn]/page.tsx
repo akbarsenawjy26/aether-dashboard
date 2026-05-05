@@ -36,19 +36,22 @@ export default function HistoryPage() {
     enabled: !!deviceSn,
   });
 
-  const endTime = new Date();
-  const startTime = new Date(endTime.getTime() - selectedPreset * 60 * 60 * 1000);
-
   const { data: historyData, isLoading } = useQuery({
-    queryKey: ["telemetry-history", deviceSn, startTime.toISOString(), endTime.toISOString(), selectedPreset],
-    queryFn: () =>
-      telemetryApi.history(deviceSn, {
-        start: startTime.toISOString(),
-        stop: endTime.toISOString(),
-        limit: 500,
-        order: "desc",
-      }).then((r) => r.data.data),
+    queryKey: ["telemetry-history", deviceSn, selectedPreset],
+    queryFn: () => {
+      const end = new Date();
+      const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
+      return telemetryApi
+        .history(deviceSn, {
+          start: start.toISOString(),
+          stop: end.toISOString(),
+          limit: 500,
+          order: "desc",
+        })
+        .then((r) => r.data.data); // backend: { success, data: HistoryResponse }
+    },
     enabled: !!deviceSn,
+    staleTime: 30000,
   });
 
   // Transform InfluxDB response to chart format
