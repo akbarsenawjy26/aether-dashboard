@@ -61,16 +61,18 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (refreshToken) {
+          // Send refresh token in request BODY, not Authorization header
+          // Backend expects: { "refresh_token": "..." }
           const { data } = await axios.post(
             `${API_BASE_URL}/auth/token/refresh`,
-            {},
+            { refresh_token: refreshToken },
             {
               headers: {
-                Authorization: `Bearer ${refreshToken}`,
+                "Content-Type": "application/json",
               },
             }
           );
-          
+
           const newAccessToken = data.data.access_token;
           const newRefreshToken = data.data.refresh_token;
           

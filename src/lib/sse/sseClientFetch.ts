@@ -74,12 +74,14 @@ async function refreshAccessToken(): Promise<string | null> {
     }
 
     const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+    // Send refresh token in request BODY, not Authorization header
+    // Backend expects: { "refresh_token": "..." }
     const response = await fetch(`${API_BASE}/auth/token/refresh`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${refreshToken}`,
       },
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
     if (!response.ok) {
