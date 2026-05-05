@@ -392,8 +392,8 @@ export default function DeviceDetailPage() {
                 <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
               </div>
             ) : (
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="h-80 min-h-0">
+                <ResponsiveContainer width="100%" height={320}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
