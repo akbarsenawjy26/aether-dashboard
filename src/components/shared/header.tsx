@@ -1,8 +1,8 @@
 "use client";
 
-import { useThemeStore } from "@/lib/stores/themeStore";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Bell, User } from "lucide-react";
+import { Moon, Sun, Bell } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +14,21 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthStore } from "@/lib/stores/authStore";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export function Header() {
-  const { theme, toggleTheme } = useThemeStore();
+  const { theme, setTheme } = useTheme();
   const { user } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
 
   const initials = user?.name
     ?.split(" ")
@@ -40,7 +51,7 @@ export function Header() {
           onClick={toggleTheme}
           className="h-9 w-9"
         >
-          {theme === "dark" ? (
+          {mounted && theme === "dark" ? (
             <Sun className="h-4 w-4" />
           ) : (
             <Moon className="h-4 w-4" />
@@ -52,8 +63,6 @@ export function Header() {
         <Button variant="ghost" size="icon" className="h-9 w-9 relative">
           <Bell className="h-4 w-4" />
           <span className="sr-only">Notifications</span>
-          {/* Badge for unread notifications */}
-          {/* <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" /> */}
         </Button>
 
         {/* User menu */}

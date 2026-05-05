@@ -15,12 +15,9 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useThemeStore } from "@/lib/stores/themeStore";
 import { useState } from "react";
 
 interface NavItem {
@@ -82,7 +79,6 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { theme, toggleTheme } = useThemeStore();
   const [expandedItems, setExpandedItems] = useState<string[]>(["Dashboard", "Master Data"]);
 
   const toggleExpanded = (label: string) => {
