@@ -38,7 +38,7 @@ export default function LocationsPage() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["locations", page, limit, search],
     queryFn: () =>
-      locationApi.list({ page, limit, search: search || undefined }).then((r) => r.data.data),
+      locationApi.list({ page, limit, search: search || undefined }),
   });
 
   const createMutation = useMutation({

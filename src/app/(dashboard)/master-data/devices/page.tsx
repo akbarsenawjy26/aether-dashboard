@@ -54,13 +54,13 @@ export default function DevicesPage() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["devices", page, limit, search],
     queryFn: () =>
-      deviceApi.list({ page, limit, search: search || undefined }).then((r) => r.data.data),
+      deviceApi.list({ page, limit, search: search || undefined }),
   });
 
   // Fetch locations for dropdown
   const { data: locationData } = useQuery({
     queryKey: ["locations-all"],
-    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.data.data.items ?? []),
+    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.items ?? []),
   });
 
   // Mutations

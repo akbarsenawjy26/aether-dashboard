@@ -26,6 +26,7 @@ export interface InstallationPointListResponse {
   total: number;
   page: number;
   limit: number;
+  total_pages: number;
 }
 
 export interface CreateInstallationPointRequest {
@@ -38,10 +39,16 @@ export interface CreateInstallationPointRequest {
 
 export const installationPointApi = {
   list: (data?: InstallationPointListRequest) =>
-    apiClient.post<{ success: true; data: InstallationPointListResponse }>(
+    apiClient.post<{ success: true; data: InstallationPoint[]; pagination: InstallationPointListResponse }>(
       "/installation-point/list",
       data ?? {}
-    ),
+    ).then((r) => ({
+      items: r.data.data,
+      total: r.data.pagination?.total ?? 0,
+      page: r.data.pagination?.page ?? 1,
+      limit: r.data.pagination?.limit ?? 10,
+      total_pages: r.data.pagination?.total_pages ?? 1,
+    })),
 
   get: (guid: string) =>
     apiClient.get<{ success: true; data: InstallationPoint }>(

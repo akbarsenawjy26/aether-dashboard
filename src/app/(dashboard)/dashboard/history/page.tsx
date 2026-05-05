@@ -17,7 +17,7 @@ export default function HistoryListPage() {
 
   const { data: devices, isLoading } = useQuery({
     queryKey: ["devices"],
-    queryFn: () => deviceApi.list({ limit: 1000 }).then((r) => r.data.data),
+    queryFn: () => deviceApi.list({ limit: 1000 }),
   });
 
   const filteredDevices = (devices?.items ?? []).filter((device) => {

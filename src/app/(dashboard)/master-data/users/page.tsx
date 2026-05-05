@@ -57,7 +57,7 @@ export default function UsersPage() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["users", page, limit, search],
     queryFn: () =>
-      userApi.list({ page, limit, search: search || undefined }).then((r) => r.data.data),
+      userApi.list({ page, limit, search: search || undefined }),
   });
 
   const createMutation = useMutation({

@@ -19,11 +19,13 @@ export interface DeviceListRequest {
   limit?: number;
 }
 
+// New API response format: { success, data: [...items], pagination: {...} }
 export interface DeviceListResponse {
   items: Device[];
   total: number;
   page: number;
   limit: number;
+  total_pages: number;
 }
 
 export interface CreateDeviceRequest {
@@ -36,7 +38,13 @@ export interface CreateDeviceRequest {
 
 export const deviceApi = {
   list: (data?: DeviceListRequest) =>
-    apiClient.post<{ success: true; data: DeviceListResponse }>("/device/list", data ?? {}),
+    apiClient.post<{ success: true; data: Device[]; pagination: DeviceListResponse }>("/device/list", data ?? {}).then((r) => ({
+      items: r.data.data,
+      total: r.data.pagination?.total ?? 0,
+      page: r.data.pagination?.page ?? 1,
+      limit: r.data.pagination?.limit ?? 10,
+      total_pages: r.data.pagination?.total_pages ?? 1,
+    })),
 
   get: (guid: string) =>
     apiClient.get<{ success: true; data: Device }>(`/device/${guid}`),

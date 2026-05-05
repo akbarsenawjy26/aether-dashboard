@@ -20,6 +20,7 @@ export interface UserListResponse {
   total: number;
   page: number;
   limit: number;
+  total_pages: number;
 }
 
 export interface CreateUserRequest {
@@ -31,7 +32,13 @@ export interface CreateUserRequest {
 
 export const userApi = {
   list: (data?: UserListRequest) =>
-    apiClient.post<{ success: true; data: UserListResponse }>("/user/list", data ?? {}),
+    apiClient.post<{ success: true; data: User[]; pagination: UserListResponse }>("/user/list", data ?? {}).then((r) => ({
+      items: r.data.data,
+      total: r.data.pagination?.total ?? 0,
+      page: r.data.pagination?.page ?? 1,
+      limit: r.data.pagination?.limit ?? 10,
+      total_pages: r.data.pagination?.total_pages ?? 1,
+    })),
 
   get: (guid: string) =>
     apiClient.get<{ success: true; data: User }>(`/user/${guid}`),

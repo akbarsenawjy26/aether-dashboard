@@ -22,6 +22,7 @@ export interface LocationListResponse {
   total: number;
   page: number;
   limit: number;
+  total_pages: number;
 }
 
 export interface CreateLocationRequest {
@@ -33,7 +34,13 @@ export interface CreateLocationRequest {
 
 export const locationApi = {
   list: (data?: LocationListRequest) =>
-    apiClient.post<{ success: true; data: LocationListResponse }>("/location/list", data ?? {}),
+    apiClient.post<{ success: true; data: Location[]; pagination: LocationListResponse }>("/location/list", data ?? {}).then((r) => ({
+      items: r.data.data,
+      total: r.data.pagination?.total ?? 0,
+      page: r.data.pagination?.page ?? 1,
+      limit: r.data.pagination?.limit ?? 10,
+      total_pages: r.data.pagination?.total_pages ?? 1,
+    })),
 
   get: (guid: string) =>
     apiClient.get<{ success: true; data: Location }>(`/location/${guid}`),

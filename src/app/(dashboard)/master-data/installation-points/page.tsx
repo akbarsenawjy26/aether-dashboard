@@ -46,18 +46,18 @@ export default function InstallationPointsPage() {
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["installation-points", page, limit, search],
     queryFn: () =>
-      installationPointApi.list({ page, limit, search: search || undefined }).then((r) => r.data.data),
+      installationPointApi.list({ page, limit, search: search || undefined }),
   });
 
   // For dropdowns
   const { data: deviceData } = useQuery({
     queryKey: ["devices-all"],
-    queryFn: () => deviceApi.list({ limit: 1000 }).then((r) => r.data.data.items ?? []),
+    queryFn: () => deviceApi.list({ limit: 1000 }).then((r) => r.items ?? []),
   });
 
   const { data: locationData } = useQuery({
     queryKey: ["locations-all"],
-    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.data.data.items ?? []),
+    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.items ?? []),
   });
 
   const createMutation = useMutation({
