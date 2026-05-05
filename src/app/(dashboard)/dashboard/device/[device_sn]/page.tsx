@@ -18,6 +18,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 // or /telemetry/devices/:device_sn/stream for single device
 const SSE_BASE = `${API_BASE}/telemetry/devices`;
 
+// Helper to build SSE URL for specific device
+export const getSSEUrl = (deviceSn?: string) =>
+  deviceSn ? `${SSE_BASE}/${deviceSn}/stream` : `${SSE_BASE}/all/stream`;
+
 const TIME_PRESETS = [
   { label: "1 Jam", hours: 1 },
   { label: "6 Jam", hours: 6 },
@@ -66,7 +70,7 @@ export default function DeviceDetailPage() {
   useEffect(() => {
     if (!deviceSn) return;
 
-    const client = new SSEReadableClient(`${SSE_BASE}/stream`, deviceSn);
+    const client = new SSEReadableClient(getSSEUrl(deviceSn));
     sseClientRef.current = client;
 
     client.setCallbacks({
