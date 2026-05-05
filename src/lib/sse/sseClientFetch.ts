@@ -15,6 +15,21 @@ export interface SSEDeviceData {
   timestamp: string;
 }
 
+// Backend DevicePayload format (grouped by device type)
+// Example: { "environment": [{ health: {...}, telemetry: {...} }] }
+interface DeviceEntry {
+  health: {
+    device_sn: string;
+    type: string;
+    status: string;
+    last_seen: string;
+    [key: string]: unknown;
+  };
+  telemetry: Record<string, unknown>;
+}
+
+type DevicePayload = Record<string, DeviceEntry[]>;
+
 export type SSEEventType = "connected" | "device_data" | "error" | "heartbeat";
 
 export interface SSEMessage {
@@ -193,28 +208,64 @@ export class SSEReadableClient {
         this.onConnected?.(0);
       }
 
-      switch (this.currentEventType) {
-        case "connected":
-          this.onConnected?.(json.count ?? 0);
-          break;
-        case "device_data":
-          this.onDeviceData?.(json as SSEDeviceData);
-          break;
-        case "error":
-          this.onError?.(json.message ?? "SSE error");
-          break;
-        case "heartbeat":
-          // heartbeat - connection is alive
-          break;
-        default:
-          // Handle unknown event types as device_data
-          if (typeof json === "object" && json !== null && "device_sn" in json) {
-            this.onDeviceData?.(json as SSEDeviceData);
-          }
+      // Handle grouped payload format from backend
+      // Backend sends: { "environment": [{ health: {...}, telemetry: {...} }] }
+      // We flatten to individual device data
+      const devices = this.flattenPayload(json);
+
+      // Emit each device as a separate device_data event
+      for (const device of devices) {
+        this.onDeviceData?.(device);
       }
-    } catch {
+    } catch (err) {
       // JSON parse error - ignore
     }
+  }
+
+  /**
+   * Flatten the grouped DevicePayload from backend into individual SSEDeviceData.
+   * Backend sends: { "environment": [{ health: {...}, telemetry: {...} }] }
+   * We flatten to: [{ device_sn, device_type, readings, timestamp }]
+   */
+  private flattenPayload(payload: unknown): SSEDeviceData[] {
+    if (!payload || typeof payload !== "object") {
+      return [];
+    }
+
+    const result: SSEDeviceData[] = [];
+    const payloadObj = payload as DevicePayload;
+
+    for (const deviceType in payloadObj) {
+      const entries = payloadObj[deviceType];
+      if (!Array.isArray(entries)) continue;
+
+      for (const entry of entries) {
+        if (!entry.health || !entry.telemetry) continue;
+
+        const { health, telemetry } = entry;
+
+        // Convert telemetry values to numbers
+        const readings: Record<string, number> = {};
+        for (const [key, value] of Object.entries(telemetry)) {
+          if (typeof value === "number") {
+            readings[key] = value;
+          } else if (typeof value === "string") {
+            const num = parseFloat(value);
+            if (!isNaN(num)) readings[key] = num;
+          }
+        }
+
+        result.push({
+          device_sn: health.device_sn || "",
+          device_type: health.type || deviceType,
+          device_name: health.device_sn, // Could be enhanced to use a name field
+          readings,
+          timestamp: health.last_seen || new Date().toISOString(),
+        });
+      }
+    }
+
+    return result;
   }
 
   private handleError(message: string) {
