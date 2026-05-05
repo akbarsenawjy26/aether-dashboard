@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Radio, Wifi, WifiOff, Clock, LayoutGrid, Table2, ChevronDown, ChevronRight } from "lucide-react";
+import { Radio, Wifi, WifiOff, Clock, LayoutGrid, Table2, ChevronDown, ChevronRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -34,6 +35,7 @@ interface DeviceGroup {
 const STALE_THRESHOLD_MS = 30_000; // 30 seconds
 
 export default function RealtimePage() {
+  const router = useRouter();
   const [deviceGroups, setDeviceGroups] = useState<DeviceGroup[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const [deviceCount, setDeviceCount] = useState(0);
@@ -354,6 +356,7 @@ function DeviceGroupCard({
 }
 
 function DeviceCard({ data }: { data: DeviceCardData }) {
+  const router = useRouter();
   const formatTime = (date: Date) =>
     date.toLocaleTimeString("id-ID", {
       hour: "2-digit",
@@ -364,7 +367,7 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
   const readingEntries = Object.entries(data.readings);
 
   return (
-    <Card className={cn("transition-colors", data.isStale && "opacity-60")}>
+    <Card className={cn("transition-colors relative", data.isStale && "opacity-60")}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="flex flex-col gap-0.5">
           <CardTitle className="text-sm font-medium truncate max-w-[160px]">
@@ -394,11 +397,22 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
         </div>
 
         {/* Timestamp */}
-        <div className="flex items-center gap-1.5 pt-2 border-t border-border">
-          <Clock className="h-3 w-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">
-            {formatTime(data.lastSeen)}
-          </span>
+        <div className="flex items-center justify-between pt-2 border-t border-border">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {formatTime(data.lastSeen)}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => router.push(`/dashboard/device/${data.device_sn}`)}
+          >
+            Detail
+            <ArrowRight className="h-3 w-3 ml-1" />
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -406,6 +420,7 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
 }
 
 function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
+  const router = useRouter();
   // Collect all unique reading keys across all devices
   const allReadingKeys = Array.from(
     devices.reduce<Set<string>>((keys, device) => {
@@ -435,6 +450,7 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
                 </th>
               ))}
               <th className="px-3 py-2 text-left font-medium">Last Seen</th>
+              <th className="px-3 py-2 text-right font-medium">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -457,6 +473,17 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
                 ))}
                 <td className="px-3 py-2 text-muted-foreground">
                   {formatTime(device.lastSeen)}
+                </td>
+                <td className="px-3 py-2 text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => router.push(`/dashboard/device/${device.device_sn}`)}
+                  >
+                    Detail
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
                 </td>
               </tr>
             ))}
