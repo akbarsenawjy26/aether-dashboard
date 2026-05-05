@@ -5,9 +5,14 @@ import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Radio, Wifi, WifiOff, Clock } from "lucide-react";
+import { Radio, Wifi, WifiOff, Clock, LayoutGrid, Table2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 const SSE_URL = `${API_BASE}/telemetry/stream`;
@@ -17,10 +22,19 @@ interface DeviceCardData extends SSEDeviceData {
   isStale: boolean;
 }
 
+type ViewMode = "card" | "table";
+
+interface DeviceGroup {
+  deviceType: string;
+  devices: DeviceCardData[];
+  viewMode: ViewMode;
+  isOpen: boolean;
+}
+
 const STALE_THRESHOLD_MS = 30_000; // 30 seconds
 
 export default function RealtimePage() {
-  const [devices, setDevices] = useState<Map<string, DeviceCardData>>(new Map());
+  const [deviceGroups, setDeviceGroups] = useState<DeviceGroup[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const [deviceCount, setDeviceCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -29,7 +43,6 @@ export default function RealtimePage() {
 
   const handleDeviceData = useCallback((data: SSEDeviceData) => {
     if (isPaused) {
-      // Store in paused buffer but don't update UI
       pausedDataRef.current.set(data.device_sn, {
         ...data,
         lastSeen: new Date(),
@@ -38,14 +51,40 @@ export default function RealtimePage() {
       return;
     }
 
-    setDevices((prev) => {
-      const next = new Map(prev);
-      next.set(data.device_sn, {
-        ...data,
-        lastSeen: new Date(),
-        isStale: false,
-      });
-      return next;
+    setDeviceGroups((prevGroups) => {
+      // Find or create group for this device type
+      const deviceType = data.device_type || "unknown";
+      const existingGroup = prevGroups.find((g) => g.deviceType === deviceType);
+      
+      if (existingGroup) {
+        return prevGroups.map((group) => {
+          if (group.deviceType !== deviceType) return group;
+          
+          const next = new Map(group.devices.map((d) => [d.device_sn, d]));
+          next.set(data.device_sn, {
+            ...data,
+            lastSeen: new Date(),
+            isStale: false,
+          });
+          
+          return {
+            ...group,
+            devices: Array.from(next.values()),
+          };
+        });
+      } else {
+        // New group
+        return [...prevGroups, {
+          deviceType,
+          devices: [{
+            ...data,
+            lastSeen: new Date(),
+            isStale: false,
+          }],
+          viewMode: "card" as ViewMode,
+          isOpen: true,
+        }];
+      }
     });
   }, [isPaused]);
 
@@ -75,18 +114,19 @@ export default function RealtimePage() {
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      setDevices((prev) => {
-        let changed = false;
-        const next = new Map(prev);
-        for (const [sn, data] of next) {
-          const age = now - data.lastSeen.getTime();
-          if (age > STALE_THRESHOLD_MS && !data.isStale) {
-            next.set(sn, { ...data, isStale: true });
-            changed = true;
-          }
-        }
-        return changed ? next : prev;
-      });
+      
+      setDeviceGroups((prevGroups) =>
+        prevGroups.map((group) => ({
+          ...group,
+          devices: group.devices.map((device) => {
+            const age = now - device.lastSeen.getTime();
+            if (age > STALE_THRESHOLD_MS && !device.isStale) {
+              return { ...device, isStale: true };
+            }
+            return device;
+          }),
+        }))
+      );
     }, 5000);
 
     return () => clearInterval(interval);
@@ -94,16 +134,38 @@ export default function RealtimePage() {
 
   const handleResume = () => {
     // Flush paused data
-    for (const [sn, data] of pausedDataRef.current) {
-      setDevices((prev) => {
-        const next = new Map(prev);
-        next.set(sn, data);
-        return next;
-      });
+    for (const [, data] of pausedDataRef.current) {
+      handleDeviceData(data);
     }
     pausedDataRef.current.clear();
     setIsPaused(false);
   };
+
+  const toggleGroupViewMode = (deviceType: string) => {
+    setDeviceGroups((prevGroups) =>
+      prevGroups.map((group) => {
+        if (group.deviceType !== deviceType) return group;
+        return {
+          ...group,
+          viewMode: group.viewMode === "card" ? "table" : "card",
+        };
+      })
+    );
+  };
+
+  const toggleGroupOpen = (deviceType: string) => {
+    setDeviceGroups((prevGroups) =>
+      prevGroups.map((group) => {
+        if (group.deviceType !== deviceType) return group;
+        return {
+          ...group,
+          isOpen: !group.isOpen,
+        };
+      })
+    );
+  };
+
+  const totalDevices = deviceGroups.reduce((sum, g) => sum + g.devices.length, 0);
 
   const statusConfig = {
     connecting: {
@@ -112,7 +174,7 @@ export default function RealtimePage() {
       icon: <Wifi className="h-4 w-4" />,
     },
     connected: {
-      label: `Terhubung (${deviceCount} devices)`,
+      label: `Terhubung (${totalDevices} devices)`,
       color: "text-green-500",
       icon: <Wifi className="h-4 w-4" />,
     },
@@ -157,21 +219,25 @@ export default function RealtimePage() {
         </div>
       </div>
 
-      {/* Device Grid */}
+      {/* Device Groups */}
       {connectionStatus === "connecting" ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-32" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-20 w-full" />
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, j) => (
+                    <Skeleton key={j} className="h-32 w-full" />
+                  ))}
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
-      ) : devices.size === 0 ? (
+      ) : deviceGroups.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Radio className="h-12 w-12 text-muted-foreground mb-4" />
@@ -182,9 +248,14 @@ export default function RealtimePage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from(devices.entries()).map(([sn, data]) => (
-            <DeviceCard key={sn} data={data} />
+        <div className="space-y-4">
+          {deviceGroups.map((group) => (
+            <DeviceGroupCard
+              key={group.deviceType}
+              group={group}
+              onToggleView={() => toggleGroupViewMode(group.deviceType)}
+              onToggleOpen={() => toggleGroupOpen(group.deviceType)}
+            />
           ))}
         </div>
       )}
@@ -206,6 +277,79 @@ export default function RealtimePage() {
         </div>
       )}
     </div>
+  );
+}
+
+function DeviceGroupCard({
+  group,
+  onToggleView,
+  onToggleOpen,
+}: {
+  group: DeviceGroup;
+  onToggleView: () => void;
+  onToggleOpen: () => void;
+}) {
+  const { deviceType, devices, viewMode, isOpen } = group;
+  const deviceLabel = deviceType.charAt(0).toUpperCase() + deviceType.slice(1).replace(/-/g, " ");
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={onToggleOpen}>
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={onToggleOpen} className="p-0 h-auto">
+              {isOpen ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </Button>
+              <div>
+                <CardTitle className="text-lg">{deviceLabel}</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {devices.length} device{devices.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={devices.some((d) => d.isStale) ? "secondary" : "default"}>
+                {devices.filter((d) => !d.isStale).length} online
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleView();
+                }}
+              >
+                {viewMode === "card" ? (
+                  <Table2 className="h-4 w-4 mr-1" />
+                ) : (
+                  <LayoutGrid className="h-4 w-4 mr-1" />
+                )}
+                {viewMode === "card" ? "Table" : "Card"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CollapsibleContent>
+          <CardContent>
+            {viewMode === "card" ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {devices.map((device) => (
+                  <DeviceCard key={device.device_sn} data={device} />
+                ))}
+              </div>
+            ) : (
+              <DeviceTable devices={devices} />
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 
@@ -233,10 +377,10 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Readings */}
+        {/* Readings - Show all */}
         <div className="space-y-2">
           {readingEntries.length > 0 ? (
-            readingEntries.slice(0, 4).map(([key, value]) => (
+            readingEntries.map(([key, value]) => (
               <div key={key} className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground capitalize">{key}</span>
                 <span className="text-sm font-mono font-medium">
@@ -246,11 +390,6 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
             ))
           ) : (
             <p className="text-xs text-muted-foreground text-center py-2">No readings</p>
-          )}
-          {readingEntries.length > 4 && (
-            <p className="text-xs text-muted-foreground text-center">
-              +{readingEntries.length - 4} more
-            </p>
           )}
         </div>
 
@@ -263,5 +402,67 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
+  // Collect all unique reading keys across all devices
+  const allReadingKeys = Array.from(
+    devices.reduce<Set<string>>((keys, device) => {
+      Object.keys(device.readings).forEach((key) => keys.add(key));
+      return keys;
+    }, new Set())
+  ).sort();
+
+  const formatTime = (date: Date) =>
+    date.toLocaleTimeString("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+  return (
+    <div className="rounded-md border overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Device SN</th>
+              <th className="px-3 py-2 text-left font-medium">Status</th>
+              {allReadingKeys.map((key) => (
+                <th key={key} className="px-3 py-2 text-right font-medium capitalize">
+                  {key}
+                </th>
+              ))}
+              <th className="px-3 py-2 text-left font-medium">Last Seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {devices.map((device) => (
+              <tr key={device.device_sn} className={cn("border-t", device.isStale && "opacity-60")}>
+                <td className="px-3 py-2 font-mono text-xs">{device.device_sn}</td>
+                <td className="px-3 py-2">
+                  <Badge variant={device.isStale ? "secondary" : "default"} className="text-xs">
+                    {device.isStale ? "Stale" : "Live"}
+                  </Badge>
+                </td>
+                {allReadingKeys.map((key) => (
+                  <td key={key} className="px-3 py-2 text-right font-mono">
+                    {device.readings[key] !== undefined
+                      ? typeof device.readings[key] === "number"
+                        ? device.readings[key].toFixed(2)
+                        : device.readings[key]
+                      : "-"}
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-muted-foreground">
+                  {formatTime(device.lastSeen)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
