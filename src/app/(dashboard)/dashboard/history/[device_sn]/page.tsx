@@ -4,14 +4,13 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Calendar } from "lucide-react";
 import { deviceApi } from "@/lib/api/devices";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { ArrowLeft, Download, Calendar } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
@@ -22,6 +21,8 @@ const TIME_PRESETS = [
   { label: "7 Hari", hours: 168 },
 ];
 
+const PAGE_SIZE = 20;
+
 export default function HistoryPage() {
   const params = useParams();
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function HistoryPage() {
 
   const [selectedPreset, setSelectedPreset] = useState(24);
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
 
   const { data: deviceData } = useQuery({
     queryKey: ["device", deviceSn],
@@ -36,8 +38,8 @@ export default function HistoryPage() {
     enabled: !!deviceSn,
   });
 
-  const { data: historyData, isLoading } = useQuery({
-    queryKey: ["telemetry-history", deviceSn, selectedPreset],
+  const { data: historyResult, isLoading } = useQuery({
+    queryKey: ["telemetry-history", deviceSn, selectedPreset, page],
     queryFn: () => {
       const end = new Date();
       const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
@@ -45,18 +47,19 @@ export default function HistoryPage() {
         .history(deviceSn, {
           start: start.toISOString(),
           stop: end.toISOString(),
-          limit: 500,
+          limit: PAGE_SIZE,
           order: "desc",
+          page: page,
         })
-        .then((r) => r.data.data); // backend: { success, data: HistoryResponse }
+        .then((r) => r.data);
     },
     enabled: !!deviceSn,
-    staleTime: 30000,
   });
 
+  const historyData = historyResult?.data ?? [];
+  const hasMore = historyResult?.pagination?.has_more ?? false;
+
   // Transform TelemetryRecord[] to chart format
-  // Backend format: { timestamp: string, fields: { key: value } }[]
-  // Chart format: { timestamp: string, key: value, ... }[]
   const chartData = historyData
     ? historyData
         .map((record) => ({
@@ -122,6 +125,11 @@ export default function HistoryPage() {
 
   const seriesColors = ["#517E68", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
+  const handlePresetChange = (hours: number) => {
+    setSelectedPreset(hours);
+    setPage(1); // reset page when changing time range
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -152,38 +160,49 @@ export default function HistoryPage() {
 
       {/* Controls */}
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-4 py-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Rentang waktu:</span>
-          </div>
-          <div className="flex gap-2">
-            {TIME_PRESETS.map((preset) => (
-              <Button
-                key={preset.hours}
-                variant={selectedPreset === preset.hours ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedPreset(preset.hours)}
-              >
-                {preset.label}
-              </Button>
-            ))}
-          </div>
-          <Select
-            value={String(selectedPreset)}
-            onValueChange={(v) => setSelectedPreset(Number(v))}
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Rentang waktu:</span>
+            </div>
+            <div className="flex gap-2">
               {TIME_PRESETS.map((preset) => (
-                <SelectItem key={preset.hours} value={String(preset.hours)}>
+                <Button
+                  key={preset.hours}
+                  variant={selectedPreset === preset.hours ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handlePresetChange(preset.hours)}
+                >
                   {preset.label}
-                </SelectItem>
+                </Button>
               ))}
-            </SelectContent>
-          </Select>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm">
+              Halaman <strong>{page}</strong>
+              {hasMore && " →"}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={!hasMore}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -253,6 +272,10 @@ export default function HistoryPage() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                {chartData.length} data points · Halaman {page}
+                {hasMore && " (ada lebih banyak)"}
+              </p>
             </>
           )}
         </CardContent>

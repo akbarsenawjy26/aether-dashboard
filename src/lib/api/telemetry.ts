@@ -14,12 +14,26 @@ export interface HistoryRequest {
   limit?: number;
   order?: "asc" | "desc";
   window?: string;
+  page?: number;
+  offset?: number;
 }
 
-// Backend returns { device_sn: string, data: TelemetryRecord[] }
+// Backend returns { success, data: TelemetryRecord[], pagination: {...} }
 export interface TelemetryRecord {
   timestamp: string;
   fields: Record<string, number | string | boolean>;
+}
+
+export interface HistoryResponse {
+  success: boolean;
+  data: TelemetryRecord[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+    has_more: boolean;
+  };
 }
 
 export const telemetryApi = {
@@ -29,9 +43,9 @@ export const telemetryApi = {
     timestamp?: string;
   }) => apiClient.post("/telemetry", data),
 
-  // Backend returns { device_sn, data: TelemetryRecord[] } directly (no success wrapper)
+  // Backend returns { success, data: TelemetryRecord[], pagination: {...} }
   history: (deviceSn: string, data: HistoryRequest) =>
-    apiClient.post<{ device_sn: string; data: TelemetryRecord[] }>(
+    apiClient.post<HistoryResponse>(
       `/telemetry/history/${deviceSn}`,
       data
     ),
