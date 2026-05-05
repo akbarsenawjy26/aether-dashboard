@@ -4,18 +4,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { ArrowLeft, Download, Wifi, WifiOff, Clock, Radio } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Wifi, WifiOff, Clock, Radio } from "lucide-react";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { deviceApi } from "@/lib/api/devices";
 import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-const SSE_URL = `${API_BASE}/telemetry/stream`;
+// SSE endpoint: /telemetry/devices/all/stream for all devices
+// or /telemetry/devices/:device_sn/stream for single device
+const SSE_BASE = `${API_BASE}/telemetry/devices`;
 
 const TIME_PRESETS = [
   { label: "1 Jam", hours: 1 },
@@ -42,9 +43,12 @@ export default function DeviceDetailPage() {
   // History state
   const [selectedPreset, setSelectedPreset] = useState(24);
   const [chartData, setChartData] = useState<Record<string, unknown>[]>([]);
+  const [tableData, setTableData] = useState<{ timestamp: string; fields: Record<string, number | string | boolean> }[]>([]);
   const [availableSeries, setAvailableSeries] = useState<string[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
 
   const STALE_THRESHOLD_MS = 30_000;
 
@@ -62,7 +66,7 @@ export default function DeviceDetailPage() {
   useEffect(() => {
     if (!deviceSn) return;
 
-    const client = new SSEReadableClient(SSE_URL, deviceSn);
+    const client = new SSEReadableClient(`${SSE_BASE}/stream`, deviceSn);
     sseClientRef.current = client;
 
     client.setCallbacks({
@@ -117,17 +121,26 @@ export default function DeviceDetailPage() {
       const response = await telemetryApi.history(deviceSn, {
         start: start.toISOString(),
         stop: end.toISOString(),
-        limit: 500,
+        limit: 20,
         order: "desc",
+        page: historyPage,
       });
 
-      const historyData = response.data.data;
+      // response.data is HistoryResponse: { success, data: TelemetryRecord[], pagination }
+      const historyResult = response.data;
+      const historyRecords = historyResult?.data ?? [];
 
-      if (historyData && Array.isArray(historyData)) {
+      // Update pagination state
+      setHasMore(historyResult.pagination?.has_more ?? false);
+
+      if (Array.isArray(historyRecords)) {
+        // Store raw records for table
+        setTableData(historyRecords);
+
         // Transform TelemetryRecord[] to chart format
         // Backend format: { timestamp: string, fields: { key: value } }
         // Chart format: { timestamp: string, key: value, ... }
-        const transformed = historyData
+        const transformed = historyRecords
           .map((record) => ({
             timestamp: record.timestamp,
             ...record.fields,
@@ -138,7 +151,7 @@ export default function DeviceDetailPage() {
 
         // Collect all unique field keys as series
         const fieldKeys = new Set<string>();
-        historyData.forEach((record) => {
+        historyRecords.forEach((record) => {
           Object.keys(record.fields).forEach((key) => fieldKeys.add(key));
         });
         const series = Array.from(fieldKeys);
@@ -150,7 +163,7 @@ export default function DeviceDetailPage() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [deviceSn, selectedPreset]);
+  }, [deviceSn, selectedPreset, historyPage]);
 
   useEffect(() => {
     fetchHistory();
@@ -205,6 +218,11 @@ export default function DeviceDetailPage() {
 
   const readingEntries = deviceData ? Object.entries(deviceData.readings) : [];
   const displaySeries = selectedSeries.length > 0 ? selectedSeries : availableSeries;
+
+  const handlePresetChange = (hours: number) => {
+    setSelectedPreset(hours);
+    setHistoryPage(1); // reset page when changing time range
+  };
 
   return (
     <div className="space-y-6">
@@ -304,23 +322,43 @@ export default function DeviceDetailPage() {
           </CardHeader>
           <CardContent>
             {/* Controls */}
-            <div className="flex flex-wrap items-center gap-4 mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <div className="flex gap-2">
                 {TIME_PRESETS.map((preset) => (
                   <Button
                     key={preset.hours}
                     variant={selectedPreset === preset.hours ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setSelectedPreset(preset.hours)}
+                    onClick={() => handlePresetChange(preset.hours)}
                   >
                     {preset.label}
                   </Button>
                 ))}
               </div>
-              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={chartData.length === 0}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
+
+              {/* Pagination */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                  disabled={historyPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Halaman <strong>{historyPage}</strong>
+                  {hasMore && " →"}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setHistoryPage((p) => p + 1)}
+                  disabled={!hasMore}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             {/* Series Toggle */}
@@ -382,6 +420,63 @@ export default function DeviceDetailPage() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Data Table */}
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Data Table</CardTitle>
+            <CardDescription>
+              {tableData.length > 0
+                ? `${tableData.length} records · Halaman ${historyPage}`
+                : "Tidak ada data"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            {historyLoading ? (
+              <Skeleton className="h-48 w-full" />
+            ) : tableData.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-center">
+                <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">
+                      Timestamp
+                    </th>
+                    {availableSeries.map((col) => (
+                      <th key={col} className="px-4 py-2 text-left font-medium text-muted-foreground capitalize">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableData.slice(0, 20).map((record, i) => (
+                    <tr key={i} className="border-b">
+                      <td className="px-4 py-2 font-mono text-xs">
+                        {record.timestamp}
+                      </td>
+                      {availableSeries.map((key) => {
+                        const val = record.fields[key];
+                        return (
+                          <td key={key} className="px-4 py-2 font-mono text-xs">
+                            {val !== undefined
+                              ? typeof val === "number"
+                                ? val.toFixed(4)
+                                : String(val)
+                              : "-"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </CardContent>
         </Card>
