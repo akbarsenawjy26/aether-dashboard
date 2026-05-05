@@ -1,11 +1,18 @@
 /**
  * SSE Client using fetch() + ReadableStream
- * 
+ *
  * Unlike EventSource, fetch() CAN set custom headers like Authorization.
  * This allows us to securely send JWT tokens without exposing them in URLs.
- * 
+ *
  * Uses the same interface as the legacy SSEClient for easy migration.
+ *
+ * Features:
+ * - Automatic token refresh on 401 errors
+ * - Queued reconnect attempts during token refresh
+ * - Exponential backoff for reconnection
  */
+
+import { getAccessToken, clearTokens } from "@/lib/api/client";
 
 export interface SSEDeviceData {
   device_sn: string;
@@ -45,6 +52,64 @@ type SSEConnectedCallback = (count: number) => void;
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY = 3000;
 const KEEPALIVE_INTERVAL = 30000; // 30s keepalive ping
+const TOKEN_REFRESH_BEFORE_MS = 60000; // Refresh token 1 minute before expiry (if expiry known)
+
+// Track if we're currently refreshing token to prevent concurrent refreshes
+let isRefreshingToken = false;
+let pendingTokenRefresh: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  // If already refreshing, wait for that to complete
+  if (isRefreshingToken && pendingTokenRefresh) {
+    return pendingTokenRefresh;
+  }
+
+  isRefreshingToken = true;
+  pendingTokenRefresh = null;
+
+  try {
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) {
+      throw new Error("No refresh token");
+    }
+
+    const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+    const response = await fetch(`${API_BASE}/auth/token/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${refreshToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Token refresh failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const newAccessToken = result.data?.access_token;
+    const newRefreshToken = result.data?.refresh_token;
+
+    if (newAccessToken && newRefreshToken) {
+      localStorage.setItem("access_token", newAccessToken);
+      localStorage.setItem("refresh_token", newRefreshToken);
+      isRefreshingToken = false;
+      pendingTokenRefresh = null;
+      return newAccessToken;
+    }
+
+    throw new Error("Invalid refresh response");
+  } catch {
+    // Refresh failed - clear tokens and redirect to login
+    clearTokens();
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+    isRefreshingToken = false;
+    pendingTokenRefresh = null;
+    return null;
+  }
+}
 
 export class SSEReadableClient {
   private abortController: AbortController | null = null;
@@ -77,6 +142,10 @@ export class SSEReadableClient {
 
   private firstDataReceived = false;
 
+  private getToken(): string | null {
+    return getAccessToken();
+  }
+
   connect() {
     if (this.isConnecting || this.abortController) {
       return;
@@ -91,7 +160,7 @@ export class SSEReadableClient {
       : this.url;
 
     // Get token from localStorage and set in Authorization header
-    const token = localStorage.getItem("access_token");
+    const token = this.getToken();
 
     this.abortController = new AbortController();
 
@@ -113,6 +182,11 @@ export class SSEReadableClient {
         this.isConnecting = false;
 
         if (!response.ok) {
+          // Check if unauthorized - try to refresh token
+          if (response.status === 401) {
+            this.handleUnauthorized();
+            return;
+          }
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
@@ -135,6 +209,73 @@ export class SSEReadableClient {
         }
 
         // Network or HTTP error
+        this.handleError(err.message || "Connection failed");
+      });
+  }
+
+  private async handleUnauthorized() {
+    // Token might be expired - try to refresh
+    const newToken = await refreshAccessToken();
+    if (newToken && !this.isManualStop) {
+      // Retry with new token
+      this.reconnectWithToken(newToken);
+    } else if (!this.isManualStop) {
+      this.handleError("Session expired. Please login again.");
+    }
+  }
+
+  private reconnectWithToken(token: string) {
+    // Close existing connection
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+
+    this.isConnecting = true;
+    this.firstDataReceived = false;
+
+    const fullUrl = this.deviceSn
+      ? `${this.url}/${this.deviceSn}`
+      : this.url;
+
+    this.abortController = new AbortController();
+
+    fetch(fullUrl, {
+      method: "GET",
+      headers: {
+        "Accept": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Authorization: `Bearer ${token}`,
+      },
+      signal: this.abortController.signal,
+    })
+      .then((response) => {
+        this.isConnecting = false;
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            this.handleError("Session expired. Please login again.");
+            return;
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        if (!response.body) {
+          throw new Error("Response body is null");
+        }
+
+        this.lastActivityTime = Date.now();
+        this.retryCount = 0;
+        this.startKeepalive();
+        this.readStream(response.body);
+      })
+      .catch((err) => {
+        this.isConnecting = false;
+
+        if (err.name === "AbortError" || this.isManualStop) {
+          return;
+        }
+
         this.handleError(err.message || "Connection failed");
       });
   }

@@ -2,6 +2,19 @@ import axios from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
+// Prevent concurrent refresh attempts (race condition)
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function subscribeTokenRefresh(callback: (token: string) => void) {
+  refreshSubscribers.push(callback);
+}
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
@@ -31,7 +44,20 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // If already refreshing, queue this request
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          subscribeTokenRefresh((token: string) => {
+            originalRequest._retry = true;
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            resolve(apiClient(originalRequest));
+          });
+        });
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
+
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (refreshToken) {
@@ -44,13 +70,25 @@ apiClient.interceptors.response.use(
               },
             }
           );
-          localStorage.setItem("access_token", data.data.access_token);
-          localStorage.setItem("refresh_token", data.data.refresh_token);
-          originalRequest.headers.Authorization = `Bearer ${data.data.access_token}`;
+          
+          const newAccessToken = data.data.access_token;
+          const newRefreshToken = data.data.refresh_token;
+          
+          localStorage.setItem("access_token", newAccessToken);
+          localStorage.setItem("refresh_token", newRefreshToken);
+          
+          // Notify all queued requests
+          onTokenRefreshed(newAccessToken);
+          isRefreshing = false;
+          
+          // Retry the original request
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         }
       } catch {
         // Refresh failed — clear auth and redirect
+        isRefreshing = false;
+        refreshSubscribers = [];
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         if (typeof window !== "undefined") {
@@ -61,3 +99,16 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Export for use in SSE client
+export function getAccessToken(): string | null {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("access_token");
+  }
+  return null;
+}
+
+export function clearTokens() {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+}
