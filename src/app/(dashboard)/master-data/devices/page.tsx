@@ -60,7 +60,7 @@ export default function DevicesPage() {
   // Fetch locations for dropdown
   const { data: locationData } = useQuery({
     queryKey: ["locations-all"],
-    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.data.data.items),
+    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.data.data.items ?? []),
   });
 
   // Mutations

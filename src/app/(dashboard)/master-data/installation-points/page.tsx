@@ -52,12 +52,12 @@ export default function InstallationPointsPage() {
   // For dropdowns
   const { data: deviceData } = useQuery({
     queryKey: ["devices-all"],
-    queryFn: () => deviceApi.list({ limit: 1000 }).then((r) => r.data.data.items),
+    queryFn: () => deviceApi.list({ limit: 1000 }).then((r) => r.data.data.items ?? []),
   });
 
   const { data: locationData } = useQuery({
     queryKey: ["locations-all"],
-    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.data.data.items),
+    queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.data.data.items ?? []),
   });
 
   const createMutation = useMutation({
