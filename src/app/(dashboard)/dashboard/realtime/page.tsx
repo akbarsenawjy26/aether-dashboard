@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { SSEClient, SSEDeviceData } from "@/lib/sse/sseClient";
+import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +24,7 @@ export default function RealtimePage() {
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const [deviceCount, setDeviceCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const sseClientRef = { current: null as SSEClient | null };
+  const sseClientRef = { current: null as SSEReadableClient | null };
   const pausedDataRef = { current: new Map<string, DeviceCardData>() };
 
   const handleDeviceData = useCallback((data: SSEDeviceData) => {
@@ -50,7 +50,7 @@ export default function RealtimePage() {
   }, [isPaused]);
 
   useEffect(() => {
-    const client = new SSEClient(SSE_URL);
+    const client = new SSEReadableClient(SSE_URL);
     sseClientRef.current = client;
 
     client.setCallbacks({
