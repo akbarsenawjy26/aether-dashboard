@@ -17,7 +17,7 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 // SSE endpoint: /telemetry/devices/all/stream for all devices
-const SSE_URL = `${API_BASE}/telemetry/devices/all/stream`;
+const SSE_URL = `${API_BASE}/telemetry/stream`;
 
 interface DeviceCardData extends SSEDeviceData {
   lastSeen: Date;
