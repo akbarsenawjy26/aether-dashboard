@@ -349,32 +349,34 @@ export default function DeviceDetailPage() {
 
             {/* Chart */}
             {historyLoading ? (
-              <Skeleton className="h-80 w-full" />
+              <Skeleton className="h-64 sm:h-80 w-full" />
             ) : chartData.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-80 text-center">
+              <div className="flex flex-col items-center justify-center h-64 sm:h-80 text-center">
                 <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
               </div>
             ) : (
-              <div className="h-80 min-h-0">
-                <ResponsiveContainer width="100%" height={320}>
+              <div className="h-64 sm:h-80 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
                       dataKey="timestamp"
                       tickFormatter={formatTimestamp}
-                      fontSize={12}
-                      tickMargin={8}
+                      fontSize={11}
+                      tickMargin={6}
+                      interval="preserveStartEnd"
                     />
-                    <YAxis fontSize={12} />
+                    <YAxis fontSize={11} width={40} />
                     <Tooltip
                       labelFormatter={(label) => formatTimestamp(String(label))}
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "var(--radius)",
+                        fontSize: "12px",
                       }}
                     />
-                    <Legend />
+                    <Legend iconSize={10} iconType="line" />
                     {displaySeries.map((series, i) => (
                       <Line
                         key={series}
