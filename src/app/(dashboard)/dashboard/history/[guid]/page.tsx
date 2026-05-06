@@ -144,7 +144,7 @@ export default function HistoryPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">History</h1>
-            <p className="text-muted-foreground flex items-center gap-2">
+            <h3 className="text-muted-foreground flex items-center gap-2">
               {deviceData ? (
                 <>
                   <Badge variant="outline">{deviceSn}</Badge>
@@ -153,7 +153,7 @@ export default function HistoryPage() {
               ) : (
                 <Skeleton className="h-4 w-48" />
               )}
-            </p>
+            </h3>
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!historyData}>
@@ -223,7 +223,7 @@ export default function HistoryPage() {
             <Skeleton className="h-64 sm:h-80 w-full" />
           ) : chartData.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 sm:h-80 text-center">
-              <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
+              <h3 className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</h3>
             </div>
           ) : (
             <>
@@ -278,10 +278,10 @@ export default function HistoryPage() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">
+              <h3 className="text-xs text-muted-foreground text-center mt-2">
                 {chartData.length} data points · Halaman {page}
                 {hasMore && " (ada lebih banyak)"}
-              </p>
+              </h3>
             </>
           )}
         </CardContent>
@@ -330,9 +330,9 @@ export default function HistoryPage() {
               </tbody>
             </table>
             {historyData.length > 50 && (
-              <p className="text-xs text-muted-foreground text-center py-2">
+              <h3 className="text-xs text-muted-foreground text-center py-2">
                 Menampilkan 50 dari {historyData.length} data points. Export CSV untuk semua data.
-              </p>
+              </h3>
             )}
           </CardContent>
         </Card>

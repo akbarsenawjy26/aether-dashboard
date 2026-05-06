@@ -38,9 +38,9 @@ export default function HistoryListPage() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">History</h1>
-        <p className="text-muted-foreground">
+        <h3 className="text-muted-foreground">
           Pilih device untuk melihat data telemetry historis
-        </p>
+        </h3>
       </div>
 
       {/* Filters */}
@@ -90,10 +90,10 @@ export default function HistoryListPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <HardDrive className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">Tidak ada device</p>
-            <p className="text-muted-foreground text-sm">
+            <h3 className="text-lg font-medium">Tidak ada device</h3>
+            <h3 className="text-muted-foreground text-sm">
               {search ? "Tidak ada device yang cocok dengan pencarian" : "Belum ada device yang terdaftar"}
-            </p>
+            </h3>
           </CardContent>
         </Card>
       ) : (
@@ -108,9 +108,9 @@ export default function HistoryListPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-sm truncate">{device.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-mono mt-1">
+                    <h3 className="text-xs text-muted-foreground font-mono mt-1">
                       {device.serial_number}
-                    </p>
+                    </h3>
                   </div>
                     <Badge variant="outline" className="ml-2 shrink-0 capitalize">
                     {device.type}
