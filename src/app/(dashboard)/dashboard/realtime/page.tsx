@@ -41,6 +41,7 @@ interface DeviceGroup {
 const STALE_THRESHOLD_MS = 30_000; // 30 seconds
 
 export default function RealtimePage() {
+  const router = useRouter();
   const [deviceGroups, setDeviceGroups] = useState<DeviceGroup[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
   const [isPaused, setIsPaused] = useState(false);
@@ -49,10 +50,16 @@ export default function RealtimePage() {
   const pausedDataRef = useRef(new Map<string, DeviceCardData>());
 
   // Build device_sn -> guid mapping for navigation
-  const { data: devicesData } = useQuery({
+  const { data: devicesData, refetch: refetchDevices } = useQuery({
     queryKey: ["devices-all"],
     queryFn: () => deviceApi.list({ limit: 1000 }),
   });
+
+  // Force refresh on mount (especially useful when coming back from detail page)
+  useEffect(() => {
+    refetchDevices();
+    router.refresh();
+  }, [refetchDevices, router]);
 
   useEffect(() => {
     if (devicesData?.items) {
@@ -127,7 +134,7 @@ export default function RealtimePage() {
     return () => {
       client.disconnect();
     };
-  }, [handleDeviceData]);
+  }, []);
 
   // Mark stale devices every 5 seconds
   useEffect(() => {

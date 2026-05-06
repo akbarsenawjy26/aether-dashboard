@@ -159,7 +159,7 @@ export default function DeviceDetailPage() {
   // Reset selected series when history changes
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting selection when time range changes is intentional
-    setSelectedSeries([]);
+    // setSelectedSeries([]);
   }, [historyRecords]);
 
   // Update hasMore
@@ -207,7 +207,7 @@ export default function DeviceDetailPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Device Detail</h1>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant="outline" className="font-mono">{deviceSn}</Badge>
+              <Badge variant="outline" className="font-mono">{deviceSn?? "-"}</Badge>
               {deviceData ? (
                 <Badge variant={deviceData.isStale ? "secondary" : "default"}>
                   {deviceData.isStale ? "Stale" : "Live"}
