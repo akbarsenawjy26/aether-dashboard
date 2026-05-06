@@ -54,14 +54,14 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-md mx-auto sm:mx-0">
       <CardHeader className="space-y-1 text-center">
         <div className="flex justify-center mb-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Radio className="h-6 w-6" />
+          <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-primary text-primary-foreground">
+            <Radio className="h-5 w-5 sm:h-6 sm:w-6" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold">Masuk</CardTitle>
+        <CardTitle className="text-xl sm:text-2xl font-bold">Masuk</CardTitle>
         <CardDescription>
           Masukkan email dan password untuk mengakses dashboard
         </CardDescription>
