@@ -186,7 +186,7 @@ export default function DeviceDetailPage() {
     }
   };
 
-  const seriesColors = ["#517E68", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
+  const seriesColors = ["#10392d", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
   const readingEntries = deviceData ? Object.entries(deviceData.readings) : [];
   const displaySeries = selectedSeries.length > 0 ? selectedSeries : availableSeries;
