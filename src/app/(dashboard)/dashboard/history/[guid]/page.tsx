@@ -7,10 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Calendar } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download, Calendar, BarChart3 } from "lucide-react";
 import { deviceApi } from "@/lib/api/devices";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { cn } from "@/lib/utils";
 
 const TIME_PRESETS = [
   { label: "1 Jam", hours: 1 },
@@ -19,100 +20,127 @@ const TIME_PRESETS = [
   { label: "7 Hari", hours: 168 },
 ];
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 100;
+
+interface ChartConfig {
+  timePreset: number;
+  selectedField: string;
+  deviceGuid: string;
+  deviceSn: string;
+}
 
 export default function HistoryPage() {
   const params = useParams();
   const router = useRouter();
   const deviceGuid = params.guid as string;
 
-  const [selectedPreset, setSelectedPreset] = useState(24);
-  const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
+  // Device list for cross-device comparison
+  const { data: allDevicesData } = useQuery({
+    queryKey: ["devices-all"],
+    queryFn: () => deviceApi.list({ limit: 1000 }),
+  });
 
-  // Fetch device info to get device_sn for telemetry history
-  const { data: deviceData } = useQuery({
+  // Fetch current device info
+  const { data: currentDevice } = useQuery({
     queryKey: ["device", deviceGuid],
     queryFn: () => deviceApi.get(deviceGuid!).then((r) => r.data.data),
     enabled: !!deviceGuid,
   });
 
-  const deviceSn = useMemo(
-    () => deviceData?.serial_number,
-    [deviceData?.serial_number]
+  const currentDeviceSn = useMemo(
+    () => currentDevice?.serial_number,
+    [currentDevice?.serial_number]
   );
 
-  const { data: historyResult, isLoading } = useQuery({
-    queryKey: ["telemetry-history", deviceSn, selectedPreset, page],
+  // Two independent chart configs
+  const [chart1Config, setChart1Config] = useState<ChartConfig>({
+    timePreset: 24,
+    selectedField: "",
+    deviceGuid,
+    deviceSn: currentDeviceSn ?? "",
+  });
+
+  const [chart2Config, setChart2Config] = useState<ChartConfig>({
+    timePreset: 24,
+    selectedField: "",
+    deviceGuid,
+    deviceSn: currentDeviceSn ?? "",
+  });
+
+  // Sync deviceGuid when page loads/changes
+  useMemo(() => {
+    if (currentDeviceSn && chart1Config.deviceGuid === deviceGuid) {
+      setChart1Config((c) => ({ ...c, deviceSn: currentDeviceSn }));
+    }
+  }, [currentDeviceSn, deviceGuid]);
+
+  // Query for chart 1
+  const { data: chart1Data, isLoading: chart1Loading } = useQuery({
+    queryKey: ["history-chart", chart1Config.deviceSn, chart1Config.timePreset],
     queryFn: () => {
       const end = new Date();
-      const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
+      const start = new Date(end.getTime() - chart1Config.timePreset * 60 * 60 * 1000);
       return telemetryApi
-        .history(deviceSn!, {
+        .history(chart1Config.deviceSn, {
           start: start.toISOString(),
           stop: end.toISOString(),
           limit: PAGE_SIZE,
           order: "desc",
-          page: page,
+          page: 1,
         })
         .then((r) => r.data);
     },
-    enabled: !!deviceSn,
+    enabled: !!chart1Config.deviceSn,
   });
 
-  const historyData = historyResult?.data ?? [];
-  const hasMore = historyResult?.pagination?.has_more ?? false;
+  // Query for chart 2
+  const { data: chart2Data, isLoading: chart2Loading } = useQuery({
+    queryKey: ["history-chart-2", chart2Config.deviceSn, chart2Config.timePreset],
+    queryFn: () => {
+      const end = new Date();
+      const start = new Date(end.getTime() - chart2Config.timePreset * 60 * 60 * 1000);
+      return telemetryApi
+        .history(chart2Config.deviceSn, {
+          start: start.toISOString(),
+          stop: end.toISOString(),
+          limit: PAGE_SIZE,
+          order: "desc",
+          page: 1,
+        })
+        .then((r) => r.data);
+    },
+    enabled: !!chart2Config.deviceSn,
+  });
 
-  // Transform TelemetryRecord[] to chart format
-  const chartData = historyData
-    ? historyData
-        .map((record) => ({
-          timestamp: record.timestamp,
-          ...record.fields,
-        }))
-        .reverse()
-    : [];
+  // All available fields from both charts
+  const allFields = useMemo(() => {
+    const fields = new Set<string>();
+    chart1Data?.data?.forEach((r) => Object.keys(r.fields).forEach((k) => fields.add(k)));
+    chart2Data?.data?.forEach((r) => Object.keys(r.fields).forEach((k) => fields.add(k)));
+    return Array.from(fields);
+  }, [chart1Data, chart2Data]);
 
-  // Collect all unique field keys as series
-  const availableSeries = historyData
-    ? Array.from(
-        historyData.reduce<Set<string>>((keys, record) => {
-          Object.keys(record.fields).forEach((k) => keys.add(k));
-          return keys;
-        }, new Set())
-      )
-    : [];
+  const transformData = (data: typeof chart1Data) =>
+    data?.data
+      ? data.data
+          .map((record) => ({
+            timestamp: record.timestamp,
+            ...record.fields,
+          }))
+          .reverse()
+      : [];
 
-  const toggleSeries = (series: string) => {
-    setSelectedSeries((prev) =>
-      prev.includes(series)
-        ? prev.filter((s) => s !== series)
-        : [...prev, series]
-    );
-  };
+  const chart1Series = useMemo(
+    () => transformData(chart1Data),
+    [chart1Data]
+  );
 
-  const handleExportCSV = () => {
-    if (!historyData || historyData.length === 0) return;
-    const header = ["timestamp", ...availableSeries];
-    const rows = historyData
-      .map((record) => {
-        const values = [record.timestamp];
-        availableSeries.forEach((key) => {
-          const val = record.fields[key];
-          values.push(val !== undefined ? String(val) : "");
-        });
-        return values.join(",");
-      })
-      .join("\n");
-    const csv = `${header.join(",")}\n${rows}`;
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `telemetry_${deviceSn}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const chart2Series = useMemo(
+    () => transformData(chart2Data),
+    [chart2Data]
+  );
+
+  const seriesColors = ["#10392d", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
   const formatTimestamp = (ts: string) => {
     try {
@@ -127,11 +155,13 @@ export default function HistoryPage() {
     }
   };
 
-  const seriesColors = ["#10392d", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
+  const getDeviceName = (guid: string) => {
+    const dev = allDevicesData?.items?.find((d) => d.guid === guid);
+    return dev ? `${dev.name} (${dev.serial_number})` : guid;
+  };
 
-  const handlePresetChange = (hours: number) => {
-    setSelectedPreset(hours);
-    setPage(1); // reset page when changing time range
+  const getDeviceSn = (guid: string) => {
+    return allDevicesData?.items?.find((d) => d.guid === guid)?.serial_number ?? "";
   };
 
   return (
@@ -143,12 +173,12 @@ export default function HistoryPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">History</h1>
+            <h1 className="text-3xl font-bold tracking-tight">History Compare</h1>
             <p className="text-muted-foreground flex items-center gap-2">
-              {deviceData ? (
+              {currentDevice ? (
                 <>
-                  <Badge variant="outline">{deviceSn}</Badge>
-                  {deviceData.name}
+                  <Badge variant="outline">{currentDeviceSn}</Badge>
+                  {currentDevice.name}
                 </>
               ) : (
                 <Skeleton className="h-4 w-48" />
@@ -156,187 +186,198 @@ export default function HistoryPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!historyData}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
       </div>
 
-      {/* Controls */}
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Rentang waktu:</span>
-            </div>
-            <div className="flex gap-2">
-              {TIME_PRESETS.map((preset) => (
-                <Button
-                  key={preset.hours}
-                  variant={selectedPreset === preset.hours ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handlePresetChange(preset.hours)}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+      {/* 2 Chart Panels */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Chart 1 */}
+        <ChartPanel
+          title="Chart 1"
+          config={chart1Config}
+          setConfig={setChart1Config}
+          data={chart1Series}
+          allFields={allFields}
+          allDevices={allDevicesData?.items ?? []}
+          isLoading={chart1Loading}
+          seriesColors={seriesColors}
+          formatTimestamp={formatTimestamp}
+          getDeviceName={getDeviceName}
+          getDeviceSn={getDeviceSn}
+        />
 
-          {/* Pagination */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm">
-              Halaman <strong>{page}</strong>
-              {hasMore && " →"}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setPage((p) => p + 1)}
-              disabled={!hasMore}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Grafik Telemetry</CardTitle>
-          <CardDescription>
-            {historyData ? `${chartData.length} data points` : "Memuat..."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <Skeleton className="h-64 sm:h-80 w-full" />
-          ) : chartData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 sm:h-80 text-center">
-              <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
-            </div>
-          ) : (
-            <>
-              {/* Series toggle */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {availableSeries.map((series) => (
-                  <Button
-                    key={series}
-                    variant={selectedSeries.includes(series) || selectedSeries.length === 0 ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => toggleSeries(series)}
-                    className="text-xs"
-                  >
-                    {series}
-                  </Button>
-                ))}
-              </div>
-
-              <div className="h-64 sm:h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="timestamp"
-                      tickFormatter={formatTimestamp}
-                      fontSize={11}
-                      tickMargin={6}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis fontSize={11} width={40} />
-                    <Tooltip
-                      labelFormatter={(label) => formatTimestamp(String(label))}
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        fontSize: "12px",
-                      }}
-                    />
-                    <Legend iconSize={10} iconType="line" />
-                    {(selectedSeries.length > 0 ? selectedSeries : availableSeries).map((series, i) => (
-                      <Line
-                        key={series}
-                        type="monotone"
-                        dataKey={series}
-                        stroke={seriesColors[i % seriesColors.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                {chartData.length} data points · Halaman {page}
-                {hasMore && " (ada lebih banyak)"}
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Data Table */}
-      {historyData && historyData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Table</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                    timestamp
-                  </th>
-                  {availableSeries.map((col) => (
-                    <th key={col} className="px-4 py-2 text-left font-medium text-muted-foreground">
-                      {col}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {historyData.slice(0, 50).map((record, idx) => (
-                  <tr key={idx} className="border-b">
-                    <td className="px-4 py-2 font-mono text-xs">
-                      {record.timestamp}
-                    </td>
-                    {availableSeries.map((key) => {
-                      const val = record.fields[key];
-                      return (
-                        <td key={key} className="px-4 py-2 font-mono text-xs">
-                          {val !== undefined
-                            ? typeof val === "number"
-                              ? val.toFixed(4)
-                              : String(val)
-                            : "-"}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {historyData.length > 50 && (
-              <p className="text-xs text-muted-foreground text-center py-2">
-                Menampilkan 50 dari {historyData.length} data points. Export CSV untuk semua data.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+        {/* Chart 2 */}
+        <ChartPanel
+          title="Chart 2"
+          config={chart2Config}
+          setConfig={setChart2Config}
+          data={chart2Series}
+          allFields={allFields}
+          allDevices={allDevicesData?.items ?? []}
+          isLoading={chart2Loading}
+          seriesColors={seriesColors}
+          formatTimestamp={formatTimestamp}
+          getDeviceName={getDeviceName}
+          getDeviceSn={getDeviceSn}
+        />
+      </div>
     </div>
+  );
+}
+
+// ─── Chart Panel Component ───────────────────────────────────────────────
+interface ChartPanelProps {
+  title: string;
+  config: ChartConfig;
+  setConfig: React.Dispatch<React.SetStateAction<ChartConfig>>;
+  data: Array<Record<string, unknown>>;
+  allFields: string[];
+  allDevices: Array<{ guid: string; name: string; serial_number: string }>;
+  isLoading: boolean;
+  seriesColors: string[];
+  formatTimestamp: (ts: string) => string;
+  getDeviceName: (guid: string) => string;
+  getDeviceSn: (guid: string) => string;
+}
+
+function ChartPanel({
+  title,
+  config,
+  setConfig,
+  data,
+  allFields,
+  allDevices,
+  isLoading,
+  seriesColors,
+  formatTimestamp,
+  getDeviceName,
+  getDeviceSn,
+}: ChartPanelProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="h-5 w-5" />
+          {title}
+        </CardTitle>
+        <CardDescription>
+          {config.deviceSn ? (
+            <span className="font-mono text-xs">{getDeviceName(config.deviceGuid)}</span>
+          ) : (
+            "Pilih device"
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Filters Row */}
+        <div className="flex flex-wrap gap-2">
+          {/* Device selector */}
+          <select
+            className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+            value={config.deviceGuid}
+            onChange={(e) => {
+              const newGuid = e.target.value;
+              const newSn = getDeviceSn(newGuid);
+              setConfig((c) => ({ ...c, deviceGuid: newGuid, deviceSn: newSn }));
+            }}
+          >
+            {allDevices.map((d) => (
+              <option key={d.guid} value={d.guid}>
+                {d.name} ({d.serial_number})
+              </option>
+            ))}
+          </select>
+
+          {/* Time range */}
+          {TIME_PRESETS.map((preset) => (
+            <Button
+              key={preset.hours}
+              variant={config.timePreset === preset.hours ? "default" : "outline"}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() =>
+                setConfig((c) => ({ ...c, timePreset: preset.hours }))
+              }
+            >
+              {preset.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Field selector */}
+        {allFields.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {allFields.map((field) => (
+              <Button
+                key={field}
+                variant={config.selectedField === field ? "default" : "secondary"}
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() =>
+                  setConfig((c) => ({
+                    ...c,
+                    selectedField: c.selectedField === field ? "" : field,
+                  }))
+                }
+              >
+                {field}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {/* Chart */}
+        {isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : data.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <p className="text-muted-foreground text-sm">Tidak ada data</p>
+          </div>
+        ) : (
+          <div className="h-64 sm:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="timestamp"
+                  tickFormatter={formatTimestamp}
+                  fontSize={10}
+                  tickMargin={6}
+                  interval="preserveStartEnd"
+                />
+                <YAxis fontSize={10} width={40} />
+                <Tooltip
+                  labelFormatter={(label) => formatTimestamp(String(label))}
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "var(--radius)",
+                    fontSize: "11px",
+                  }}
+                />
+                <Legend iconSize={8} iconType="line" />
+                {(
+                  config.selectedField
+                    ? [config.selectedField]
+                    : allFields
+                ).map((field, i) => (
+                  <Line
+                    key={field}
+                    type="monotone"
+                    dataKey={field}
+                    stroke={seriesColors[i % seriesColors.length]}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground text-center">
+          {data.length} data points
+        </p>
+      </CardContent>
+    </Card>
   );
 }
