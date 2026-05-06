@@ -40,7 +40,16 @@ interface DeviceCardData extends SSEDeviceData {
 export default function DeviceDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const deviceSn = params.device_sn as string;
+  const deviceGuid = params.guid as string;
+
+  // Fetch device info to get device_sn for SSE
+  const { data: deviceInfo } = useQuery({
+    queryKey: ["device", deviceGuid],
+    queryFn: () => deviceApi.get(deviceGuid!),
+    enabled: !!deviceGuid,
+  });
+
+  const deviceSn = deviceInfo?.data?.data?.serial_number;
 
   // Real-time state
   const [deviceData, setDeviceData] = useState<DeviceCardData | null>(null);
@@ -54,17 +63,8 @@ export default function DeviceDetailPage() {
 
   const STALE_THRESHOLD_MS = 30_000;
 
-  // Fetch device info
-  useEffect(() => {
-    if (!deviceSn) return;
-    deviceApi.get(deviceSn).then(() => {
-      // Device info loaded
-    }).catch(() => {
-      // Handle error silently
-    });
-  }, [deviceSn]);
-
   // Connect to SSE for real-time data
+  // deviceSn comes from deviceInfo query (serial_number), not from route param (guid)
   useEffect(() => {
     if (!deviceSn) return;
 

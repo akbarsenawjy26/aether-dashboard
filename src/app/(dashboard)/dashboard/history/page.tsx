@@ -102,7 +102,7 @@ export default function HistoryListPage() {
             <Card
               key={device.guid}
               className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => router.push(`/dashboard/history/${device.serial_number}`)}
+              onClick={() => router.push(`/dashboard/history/${device.guid}`)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">

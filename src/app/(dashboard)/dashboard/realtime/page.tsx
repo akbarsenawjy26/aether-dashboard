@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
+import { deviceApi } from "@/lib/api/devices";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +20,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080"
 // SSE endpoint: /telemetry/stream for all devices
 // or /telemetry/stream/:device_sn for single device
 const SSE_URL = `${API_BASE}/telemetry/stream`;
+
+// Module-level mapping: device_sn -> guid (populated after devices load)
+const snToGuid = new Map<string, string>();
 
 interface DeviceCardData extends SSEDeviceData {
   lastSeen: Date;
@@ -42,6 +47,18 @@ export default function RealtimePage() {
   const [pausedDataCount, setPausedDataCount] = useState(0);
   const sseClientRef = useRef<SSEReadableClient | null>(null);
   const pausedDataRef = useRef(new Map<string, DeviceCardData>());
+
+  // Build device_sn -> guid mapping for navigation
+  const { data: devicesData } = useQuery({
+    queryKey: ["devices-all"],
+    queryFn: () => deviceApi.list({ limit: 1000 }),
+  });
+
+  useEffect(() => {
+    if (devicesData?.items) {
+      devicesData.items.forEach((d) => snToGuid.set(d.serial_number, d.guid));
+    }
+  }, [devicesData]);
 
   const handleDeviceData = useCallback((data: SSEDeviceData) => {
     if (isPaused) {
@@ -409,7 +426,7 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
             variant="ghost"
             size="sm"
             className="h-7 text-xs"
-            onClick={() => router.push(`/dashboard/device/${data.device_sn}`)}
+            onClick={() => router.push(`/dashboard/device/${snToGuid.get(data.device_sn)}`)}
           >
             Detail
             <ArrowRight className="h-3 w-3 ml-1" />
@@ -480,7 +497,7 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
                     variant="ghost"
                     size="sm"
                     className="h-7 text-xs"
-                    onClick={() => router.push(`/dashboard/device/${device.device_sn}`)}
+                    onClick={() => router.push(`/dashboard/device/${snToGuid.get(device.device_sn)}`)}
                   >
                     Detail
                     <ArrowRight className="h-3 w-3 ml-1" />

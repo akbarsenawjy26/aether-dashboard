@@ -177,7 +177,7 @@ export default function DeviceDetailPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => router.push(`/dashboard/history/${device.serial_number}`)}
+            onClick={() => router.push(`/dashboard/history/${device.guid}`)}
           >
             <History className="h-4 w-4 mr-2" />
             Lihat History

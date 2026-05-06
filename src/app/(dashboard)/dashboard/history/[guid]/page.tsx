@@ -24,17 +24,20 @@ const PAGE_SIZE = 20;
 export default function HistoryPage() {
   const params = useParams();
   const router = useRouter();
-  const deviceSn = params.device_sn as string;
+  const deviceGuid = params.guid as string;
 
   const [selectedPreset, setSelectedPreset] = useState(24);
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
+  // Fetch device info to get device_sn for telemetry history
   const { data: deviceData } = useQuery({
-    queryKey: ["device", deviceSn],
-    queryFn: () => deviceApi.get(deviceSn).then((r) => r.data.data),
-    enabled: !!deviceSn,
+    queryKey: ["device", deviceGuid],
+    queryFn: () => deviceApi.get(deviceGuid!).then((r) => r.data.data),
+    enabled: !!deviceGuid,
   });
+
+  const deviceSn = deviceData?.serial_number;
 
   const { data: historyResult, isLoading } = useQuery({
     queryKey: ["telemetry-history", deviceSn, selectedPreset, page],
@@ -42,7 +45,7 @@ export default function HistoryPage() {
       const end = new Date();
       const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
       return telemetryApi
-        .history(deviceSn, {
+        .history(deviceSn!, {
           start: start.toISOString(),
           stop: end.toISOString(),
           limit: PAGE_SIZE,
