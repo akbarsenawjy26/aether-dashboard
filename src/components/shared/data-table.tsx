@@ -319,7 +319,7 @@ export function DataTable<TData, TValue>({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={() => pagination.onPageChange(1)}
                 disabled={pagination.page <= 1}
               >
@@ -328,7 +328,7 @@ export function DataTable<TData, TValue>({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={() => pagination.onPageChange(pagination.page - 1)}
                 disabled={pagination.page <= 1}
               >
@@ -342,7 +342,7 @@ export function DataTable<TData, TValue>({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={() => pagination.onPageChange(pagination.page + 1)}
                 disabled={pagination.page >= totalPages}
               >
@@ -351,7 +351,7 @@ export function DataTable<TData, TValue>({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8"
+                className="h-9 w-9 sm:h-8 sm:w-8"
                 onClick={() => pagination.onPageChange(totalPages)}
                 disabled={pagination.page >= totalPages}
               >
@@ -377,7 +377,7 @@ export function ActionCell(props: {
         render={
           <button
             type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
             aria-label="Open menu"
           />
         }
