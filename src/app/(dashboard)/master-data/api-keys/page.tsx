@@ -189,7 +189,12 @@ export default function APIKeysPage() {
 
   const deviceOptions = [
     { value: "", label: "Semua device" },
-    ...(deviceData?.map((d) => ({ value: d.guid, label: `${d.name} (${d.serial_number})` })) ?? []),
+    ...(Array.isArray(deviceData)
+      ? deviceData.map((d) => ({
+          value: d.guid,
+          label: d.alias || d.name || d.serial_number,
+        }))
+      : []),
   ];
 
   const items = data?.items ?? [];

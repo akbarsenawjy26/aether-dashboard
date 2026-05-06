@@ -7,6 +7,8 @@ export interface Device {
   type: "sensor" | "gateway" | "controller" | "other";
   location_guid?: string;
   location_name?: string;
+  alias?: string;
+  notes?: string;
   status: "online" | "offline" | "unknown";
   metadata?: Record<string, unknown>;
   created_at: string;
@@ -33,6 +35,8 @@ export interface CreateDeviceRequest {
   serial_number: string;
   type: Device["type"];
   location_guid?: string;
+  alias?: string;
+  notes?: string;
   metadata?: Record<string, unknown>;
 }
 

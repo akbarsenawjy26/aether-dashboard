@@ -8,7 +8,20 @@ import { deviceApi } from "@/lib/api/devices";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Radio, Wifi, WifiOff, Clock, LayoutGrid, Table2, ChevronDown, ChevronRight, ArrowRight } from "lucide-react";
+import { 
+  Radio, 
+  Wifi, 
+  WifiOff, 
+  Play, 
+  Pause, 
+  RotateCw, 
+  Clock, 
+  LayoutGrid, 
+  Table2, 
+  ChevronDown, 
+  ChevronRight, 
+  ArrowRight 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -90,8 +103,8 @@ export default function RealtimePage() {
           const next = new Map(group.devices.map((d) => [d.device_sn, d]));
           next.set(data.device_sn, {
             ...data,
-            lastSeen: new Date(),
-            isStale: false,
+            lastSeen: new Date(data.timestamp),
+            isStale: data.is_stale || false,
           });
           
           return {
@@ -105,8 +118,8 @@ export default function RealtimePage() {
           deviceType,
           devices: [{
             ...data,
-            lastSeen: new Date(),
-            isStale: false,
+            lastSeen: new Date(data.timestamp),
+            isStale: data.is_stale || false,
           }],
           viewMode: "card" as ViewMode,
           isOpen: true,
@@ -233,14 +246,18 @@ export default function RealtimePage() {
             variant={isPaused ? "default" : "outline"}
             size="sm"
             onClick={() => setIsPaused((p) => !p)}
+            className="gap-2"
           >
+            {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
             {isPaused ? "Lanjut" : "Pause"}
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => window.location.reload()}
+            className="gap-2"
           >
+            <RotateCw className="h-4 w-4" />
             Refresh
           </Button>
         </div>
@@ -392,17 +409,31 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
   const readingEntries = Object.entries(data.readings);
 
   return (
-    <Card className={cn("transition-colors relative", data.isStale && "opacity-60")}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <div className="flex flex-col gap-0.5">
-          <CardTitle className="text-sm font-medium truncate max-w-[160px]">
-            {data.device_name ?? data.device_sn}
+    <Card className={cn(
+      "transition-all duration-300 relative hover:shadow-xl border-none group",
+      "bg-white shadow-sm dark:bg-[#222222] dark:shadow-none dark:ring-1 dark:ring-white/5",
+      data.isStale && "opacity-60"
+    )}>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between mb-1">
+          <CardTitle className="text-base font-bold truncate text-foreground/90 group-hover:text-primary transition-colors">
+            {data.device_name || "Sensor Node"}
           </CardTitle>
-          <p className="text-xs text-muted-foreground font-mono">{data.device_sn}</p>
+          <Badge 
+            variant={data.isStale ? "secondary" : "default"} 
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter",
+              !data.isStale && "bg-green-500 hover:bg-green-600 text-white shadow-sm shadow-green-200"
+            )}
+          >
+            {data.isStale ? "Offline" : "Live"}
+          </Badge>
         </div>
-        <Badge variant={data.isStale ? "secondary" : "default"} className="ml-auto">
-          {data.isStale ? "Stale" : "Live"}
-        </Badge>
+        <div className="flex items-center">
+          <span className="text-[10px] font-mono bg-muted/50 px-1.5 py-0.5 rounded text-muted-foreground uppercase tracking-wider truncate">
+            {data.device_sn}
+          </span>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Readings - Show all */}
@@ -462,33 +493,47 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
     });
 
   return (
-    <div className="rounded-md border overflow-hidden">
+    <div className="rounded-xl overflow-hidden border-none bg-card/30 backdrop-blur-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
+        <table className="w-full text-sm border-collapse">
+          <thead className="bg-muted/50 border-none">
             <tr>
-              <th className="px-3 py-2 text-left font-medium">Device SN</th>
-              <th className="px-3 py-2 text-left font-medium">Status</th>
+              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Device Name</th>
+              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Device SN</th>
+              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Status</th>
               {allReadingKeys.map((key) => (
-                <th key={key} className="px-3 py-2 text-right font-medium capitalize">
+                <th key={key} className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px] capitalize">
                   {key}
                 </th>
               ))}
-              <th className="px-3 py-2 text-left font-medium">Last Seen</th>
-              <th className="px-3 py-2 text-right font-medium">Action</th>
+              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Last Seen</th>
+              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Action</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-none">
             {devices.map((device) => (
-              <tr key={device.device_sn} className={cn("border-t", device.isStale && "opacity-60")}>
-                <td className="px-3 py-2 font-mono text-xs">{device.device_sn}</td>
-                <td className="px-3 py-2">
-                  <Badge variant={device.isStale ? "secondary" : "default"} className="text-xs">
-                    {device.isStale ? "Stale" : "Live"}
+              <tr key={device.device_sn} className={cn("hover:bg-muted/50 even:bg-muted/20 transition-colors h-16 border-none", device.isStale && "opacity-60")}>
+                <td className="px-6 py-4 text-center font-medium">
+                  {device.device_name || "Sensor Node"}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground uppercase tracking-wider">
+                    {device.device_sn}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <Badge 
+                    variant={device.isStale ? "secondary" : "default"} 
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-tighter",
+                      !device.isStale && "bg-green-500 hover:bg-green-600 text-white shadow-sm shadow-green-200"
+                    )}
+                  >
+                    {device.isStale ? "Offline" : "Live"}
                   </Badge>
                 </td>
                 {allReadingKeys.map((key) => (
-                  <td key={key} className="px-3 py-2 text-right font-mono">
+                  <td key={key} className="px-6 py-4 text-center font-mono font-medium">
                     {device.readings[key] !== undefined
                       ? typeof device.readings[key] === "number"
                         ? device.readings[key].toFixed(2)
@@ -496,18 +541,18 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
                       : "-"}
                   </td>
                 ))}
-                <td className="px-3 py-2 text-muted-foreground">
+                <td className="px-6 py-4 text-center text-muted-foreground font-mono text-xs">
                   {formatTime(device.lastSeen)}
                 </td>
-                <td className="px-3 py-2 text-right">
+                <td className="px-6 py-4 text-center">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs"
+                    className="h-8 w-8 p-0 rounded-full hover:bg-primary/10 hover:text-primary transition-all"
                     onClick={() => router.push(`/dashboard/device/${snToGuid.get(device.device_sn)}`)}
+                    title="View Detail"
                   >
-                    Detail
-                    <ArrowRight className="h-3 w-3 ml-1" />
+                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </td>
               </tr>

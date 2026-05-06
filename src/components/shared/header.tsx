@@ -1,19 +1,12 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Bell } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Moon, Sun, Bell, ChevronRight, Home } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/authStore";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export function Header() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -23,6 +16,24 @@ export function Header() {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
+  const pathname = usePathname();
+  
+  const breadcrumbs = pathname
+    .split("/")
+    .filter((path) => path && path !== "dashboard" && path !== "master-data")
+    .map((path) => {
+      return {
+        label: path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, " "),
+        href: pathname.split(path)[0] + path,
+      };
+    });
+
+  const parentLabel = pathname.includes("dashboard") 
+    ? "Dashboard" 
+    : pathname.includes("master-data") 
+    ? "Master Data" 
+    : null;
+
   const initials = user?.name
     ?.split(" ")
     .map((n) => n[0])
@@ -31,9 +42,40 @@ export function Header() {
     .slice(0, 2) ?? "U";
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Page title slot — can be customized per page */}
-      <div />
+    <header className="flex h-16 items-center justify-between rounded-3xl bg-card px-6 shadow-md border-none transition-all duration-300">
+      {/* Breadcrumbs */}
+      <nav className="flex items-center gap-2 text-sm">
+        <Link 
+          href="/dashboard/realtime" 
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+        >
+          <Home className="h-4 w-4" />
+        </Link>
+        
+        {parentLabel && (
+          <>
+            <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+            <span className="text-muted-foreground/70 font-medium">{parentLabel}</span>
+          </>
+        )}
+
+        {breadcrumbs.map((crumb, i) => (
+          <div key={crumb.href} className="flex items-center gap-2">
+            <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+            <Link
+              href={crumb.href}
+              className={cn(
+                "transition-colors hover:text-primary",
+                i === breadcrumbs.length - 1
+                  ? "text-foreground font-bold"
+                  : "text-muted-foreground"
+              )}
+            >
+              {crumb.label}
+            </Link>
+          </div>
+        ))}
+      </nav>
 
       {/* Right side */}
       <div className="flex items-center gap-2">
@@ -57,46 +99,6 @@ export function Header() {
           <Bell className="h-4 w-4" />
           <span className="sr-only">Notifications</span>
         </Button>
-
-        {/* User menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-full">
-            <Avatar className="h-9 w-9">
-              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  {user?.name ?? "User"}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  {user?.email ?? ""}
-                </p>
-                <p className="text-xs leading-none text-muted-foreground capitalize">
-                  {user?.role ?? ""}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Link href="/settings" className="w-full">Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                localStorage.removeItem("access_token");
-                localStorage.removeItem("refresh_token");
-                window.location.href = "/login";
-              }}
-              className="text-destructive focus:text-destructive"
-            >
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </header>
   );

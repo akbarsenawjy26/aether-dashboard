@@ -70,7 +70,9 @@ export default function DashboardLayout({
 
       {/* Desktop Main Content */}
       <div className="hidden lg:flex flex-1 flex-col overflow-hidden">
-        <Header />
+        <div className="p-4 pb-0">
+          <Header />
+        </div>
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>

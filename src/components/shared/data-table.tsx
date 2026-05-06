@@ -228,69 +228,72 @@ export function DataTable<TData, TValue>({
 
       {/* Desktop Table View - hidden on mobile */}
       <div className="hidden md:block">
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        header.column.getCanSort() && "cursor-pointer select-none"
-                      )}
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="flex items-center gap-1">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                        {header.column.getCanSort() && (
-                          <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+        <div className="p-1">
+          <div className="rounded-xl bg-card overflow-hidden">
+            <Table className="border-none">
+              <TableHeader className="bg-muted/50 border-none">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead
+                        key={header.id}
+                        className={cn(
+                          "text-center",
+                          header.column.getCanSort() && "cursor-pointer select-none"
                         )}
-                      </div>
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                // Loading skeleton
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {columns.map((_, j) => (
-                      <TableCell key={j}>
-                        <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                      </TableCell>
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                          {header.column.getCanSort() && (
+                            <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </div>
+                      </TableHead>
                     ))}
                   </TableRow>
-                ))
-              ) : table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center text-muted-foreground"
-                  >
-                    Tidak ada data.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
+                ))}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  // Loading skeleton
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {columns.map((_, j) => (
+                        <TableCell key={j}>
+                          <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : table.getRowModel().rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      Tidak ada data.
+                    </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="even:bg-muted/30 hover:bg-muted/50 border-none h-16">
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="text-center px-6 py-6">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
 
@@ -382,7 +385,7 @@ export function ActionCell(props: {
         render={
           <button
             type="button"
-            className="inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground border border-border"
+            className="inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-full text-sm font-medium transition-all hover:scale-105 active:scale-95 hover:bg-accent hover:text-accent-foreground border border-border"
             aria-label="Open menu"
           >
             <MoreHorizontal className="h-4 w-4" />

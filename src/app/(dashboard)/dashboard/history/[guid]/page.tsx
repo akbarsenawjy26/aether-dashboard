@@ -11,7 +11,9 @@ import { ArrowLeft, Download, Calendar } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deviceApi } from "@/lib/api/devices";
 import { telemetryApi } from "@/lib/api/telemetry";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import dynamic from "next/dynamic";
+
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const TIME_PRESETS = [
   { label: "1 Jam", hours: 1 },
@@ -36,7 +38,7 @@ function ChartPanel({ deviceList, initialDeviceGuid, initialDeviceSn, showDevice
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
 
   const currentDevice = useMemo(
-    () => deviceList.find((d) => d.guid === selectedGuid),
+    () => (Array.isArray(deviceList) ? deviceList.find((d) => d.guid === selectedGuid) : null),
     [deviceList, selectedGuid]
   );
 
@@ -168,41 +170,66 @@ function ChartPanel({ deviceList, initialDeviceGuid, initialDeviceSn, showDevice
               ))}
             </div>
 
-            <div className="h-64 sm:h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="timestamp"
-                    tickFormatter={formatTimestamp}
-                    fontSize={11}
-                    tickMargin={6}
-                    interval="preserveStartEnd"
-                  />
-                  <YAxis fontSize={11} width={40} />
-                  <Tooltip
-                    labelFormatter={(label) => formatTimestamp(String(label))}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "var(--radius)",
-                      fontSize: "12px",
-                    }}
-                  />
-                  <Legend iconSize={10} iconType="line" />
-                  {displaySeries.map((series, i) => (
-                    <Line
-                      key={series}
-                      type="monotone"
-                      dataKey={series}
-                      stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
-                      strokeWidth={2}
-                      dot={false}
-                      activeDot={{ r: 4 }}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="h-64 sm:h-80 overflow-hidden">
+              <Chart
+                type="area"
+                height="100%"
+                series={displaySeries.map((series) => ({
+                  name: series,
+                  data: chartData.map((d: any) => ({
+                    x: new Date(d.timestamp).getTime(),
+                    y: d[series]
+                  }))
+                }))}
+                options={{
+                  chart: {
+                    id: "telemetry-chart",
+                    toolbar: { show: false },
+                    zoom: { enabled: false },
+                    fontFamily: 'inherit',
+                  },
+                  dataLabels: { enabled: false },
+                  stroke: { curve: 'smooth', width: 2 },
+                  colors: SERIES_COLORS,
+                  fill: {
+                    type: 'gradient',
+                    gradient: {
+                      shadeIntensity: 1,
+                      opacityFrom: 0.45,
+                      opacityTo: 0.05,
+                      stops: [20, 100, 100, 100]
+                    }
+                  },
+                  xaxis: {
+                    type: 'datetime',
+                    labels: {
+                      style: { fontSize: '11px', colors: '#64748b' },
+                      datetimeUTC: false,
+                    },
+                    axisBorder: { show: false },
+                    axisTicks: { show: false },
+                  },
+                  yaxis: {
+                    labels: {
+                      style: { fontSize: '11px', colors: '#64748b' },
+                    },
+                  },
+                  tooltip: {
+                    x: { format: 'dd MMM, HH:mm' },
+                    theme: 'light',
+                  },
+                  grid: {
+                    borderColor: '#f1f5f9',
+                    strokeDashArray: 4,
+                  },
+                  legend: {
+                    show: true,
+                    position: 'top',
+                    horizontalAlign: 'right',
+                    fontSize: '11px',
+                  },
+                }}
+              />
             </div>
             <p className="text-xs text-muted-foreground text-center mt-2">
               {chartData.length} data points
@@ -229,7 +256,7 @@ export default function HistoryPage() {
 
   // Get current device info from URL
   const currentDevice = useMemo(
-    () => deviceList.find((d) => d.guid === deviceGuid),
+    () => (Array.isArray(deviceList) ? deviceList.find((d) => d.guid === deviceGuid) : null),
     [deviceList, deviceGuid]
   );
 
@@ -242,36 +269,21 @@ export default function HistoryPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Compare History</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Detail History</h1>
             <p className="text-muted-foreground">
-              Bandingkan telemetry dari 2 device berbeda
+              {currentDevice?.name || "Loading..."} - {currentDevice?.serial_number}
             </p>
           </div>
         </div>
       </div>
 
-      {/* 2 Chart Comparison */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartPanel
-          deviceList={deviceList}
-          initialDeviceGuid={deviceGuid}
-          initialDeviceSn={currentDevice?.serial_number}
-          showDeviceSelector={true}
-        />
-        <ChartPanel
-          deviceList={deviceList}
-          showDeviceSelector={true}
-        />
-      </div>
-
-      {/* Info */}
-      <Card>
-        <CardContent className="py-4">
-          <p className="text-sm text-muted-foreground text-center">
-            Bandingkan hingga 2 device secara side-by-side. Setiap chart punya kontrol waktu dan field yang independent.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Single Chart */}
+      <ChartPanel
+        deviceList={deviceList}
+        initialDeviceGuid={deviceGuid}
+        initialDeviceSn={currentDevice?.serial_number}
+        showDeviceSelector={false}
+      />
     </div>
   );
 }

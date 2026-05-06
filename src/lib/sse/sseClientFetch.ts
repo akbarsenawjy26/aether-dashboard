@@ -20,6 +20,8 @@ export interface SSEDeviceData {
   device_name?: string;
   readings: Record<string, number>;
   timestamp: string;
+  status?: string;
+  is_stale?: boolean;
 }
 
 // Backend DevicePayload format (grouped by device type)
@@ -395,9 +397,11 @@ export class SSEReadableClient {
       result.push({
         device_sn: (health.device_sn as string) || "",
         device_type: (health.type as string) || "unknown",
-        device_name: health.device_sn as string,
+        device_name: (health.device_name as string) || (health.device_sn as string),
         readings,
         timestamp: (health.last_seen as string) || new Date().toISOString(),
+        status: (health.status as string) || "unknown",
+        is_stale: health.status === "offline" || isStale(health.last_seen as string),
       });
 
       return result;
@@ -426,9 +430,11 @@ export class SSEReadableClient {
         result.push({
           device_sn: (health.device_sn as string) || "",
           device_type: (health.type as string) || deviceType,
-          device_name: health.device_sn as string,
+          device_name: (health.device_name as string) || (health.device_sn as string),
           readings,
           timestamp: (health.last_seen as string) || new Date().toISOString(),
+          status: (health.status as string) || "unknown",
+          is_stale: health.status === "offline" || isStale(health.last_seen as string),
         });
       }
     }
@@ -486,3 +492,10 @@ export class SSEReadableClient {
     return this.abortController !== null && !this.isConnecting;
   }
 }
+
+const isStale = (lastSeen: string) => {
+  const lastSeenDate = new Date(lastSeen);
+  const now = new Date();
+  if (isNaN(lastSeenDate.getTime())) return true; // Invalid date = stale
+  return now.getTime() - lastSeenDate.getTime() > 30000; // 30 seconds
+};

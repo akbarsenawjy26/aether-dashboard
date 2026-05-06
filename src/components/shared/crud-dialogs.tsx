@@ -27,17 +27,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 // Generic form field types
 type FormFieldConfig<T> = {
   name: keyof T;
   label: string;
-  type?: "text" | "number" | "email" | "password" | "select";
+  type?: "text" | "number" | "email" | "password" | "select" | "textarea";
   placeholder?: string;
   required?: boolean;
   options?: { value: string; label: string }[];
+  onAddClick?: () => void;
 };
 
 // Generic CRUD Dialog Props
@@ -246,35 +248,63 @@ function GenericForm(props: {
             name={String(field.name)}
             render={({ field: formField }) => (
               <FormItem>
-                <FormLabel>
-                  {field.label}
-                  {field.required && <span className="text-destructive ml-1">*</span>}
+                <FormLabel className="flex items-center gap-2">
+                  <span>
+                    {field.label}
+                    {field.required && <span className="text-destructive ml-1">*</span>}
+                  </span>
+                  {field.onAddClick && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-5 w-5 rounded-full p-0"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        field.onAddClick?.();
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  )}
                 </FormLabel>
                 <FormControl>
-                  {field.type === "select" ? (
-                    <Select
-                      value={String(formField.value ?? "")}
-                      onValueChange={formField.onChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={field.placeholder} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {field.options?.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      {...formField}
-                      value={formField.value ?? ""}
-                      placeholder={field.placeholder}
-                      type={field.type ?? "text"}
-                    />
-                  )}
+                    {field.type === "select" ? (
+                      <Select
+                        onValueChange={formField.onChange}
+                        defaultValue={formField.value || ""}
+                        value={formField.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={field.placeholder}>
+                              {field.options?.find(opt => opt.value === formField.value)?.label}
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="min-w-[var(--radix-select-trigger-width)]">
+                          {field.options?.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : field.type === "textarea" ? (
+                      <Textarea
+                        {...formField}
+                        value={formField.value ?? ""}
+                        placeholder={field.placeholder}
+                      />
+                    ) : (
+                      <Input
+                        {...formField}
+                        value={formField.value ?? ""}
+                        placeholder={field.placeholder}
+                        type={field.type ?? "text"}
+                      />
+                    )}
                 </FormControl>
                 <FormMessage />
               </FormItem>

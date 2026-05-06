@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio } from "lucide-react";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { deviceApi } from "@/lib/api/devices";
+import dynamic from "next/dynamic";
+import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio } from "lucide-react";
+
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
@@ -63,6 +65,7 @@ export default function DeviceDetailPage() {
   const [selectedPreset, setSelectedPreset] = useState(24);
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const STALE_THRESHOLD_MS = 30_000;
 
@@ -119,12 +122,12 @@ export default function DeviceDetailPage() {
   const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
 
   const { isLoading: historyLoading, data: historyResponse } = useQuery({
-    queryKey: ["telemetry-history", deviceSn, selectedPreset, historyPage],
+    queryKey: ["telemetry-history", deviceSn, selectedPreset, historyPage, limit],
     queryFn: () =>
       telemetryApi.history(deviceSn!, {
         start: start.toISOString(),
         stop: end.toISOString(),
-        limit: 20,
+        limit: limit,
         order: "desc",
         page: historyPage,
       }),
@@ -186,10 +189,40 @@ export default function DeviceDetailPage() {
     }
   };
 
-  const seriesColors = ["#10392d", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
+  const VIBRANT_COLORS = [
+    "#FF5722", // Deep Orange
+    "#2196F3", // Blue
+    "#4CAF50", // Green
+    "#FFC107", // Amber
+    "#9C27B0", // Purple
+    "#00BCD4", // Cyan
+    "#E91E63", // Pink
+    "#FF9800", // Orange
+  ];
+
+  const getSeriesColor = (name: string, index: number) => {
+    const n = name.toLowerCase();
+    const safeIndex = Math.max(0, index);
+    if (n.includes("temp")) return "#FF5722";
+    if (n.includes("humi")) return "#2196F3";
+    if (n.includes("press")) return "#4CAF50";
+    if (n.includes("volt")) return "#FFC107";
+    if (n.includes("curr")) return "#9C27B0";
+    if (n.includes("batt")) return "#4CAF50";
+    return VIBRANT_COLORS[safeIndex % VIBRANT_COLORS.length] || VIBRANT_COLORS[0];
+  };
+
+  const chartSeries = availableSeries
+    .filter((s) => selectedSeries.length === 0 || selectedSeries.includes(s))
+    .map((series) => ({
+      name: series,
+      data: chartData.map((d: any) => ({
+        x: new Date(d.timestamp).getTime(),
+        y: d[series]
+      }))
+    }));
 
   const readingEntries = deviceData ? Object.entries(deviceData.readings) : [];
-  const displaySeries = selectedSeries.length > 0 ? selectedSeries : availableSeries;
 
   const handlePresetChange = (hours: number) => {
     setSelectedPreset(hours);
@@ -307,30 +340,6 @@ export default function DeviceDetailPage() {
                   </Button>
                 ))}
               </div>
-
-              {/* Pagination */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
-                  disabled={historyPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm">
-                  Halaman <strong>{historyPage}</strong>
-                  {hasMore && " →"}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setHistoryPage((p) => p + 1)}
-                  disabled={!hasMore}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
 
             {/* Series Toggle */}
@@ -358,41 +367,64 @@ export default function DeviceDetailPage() {
                 <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
               </div>
             ) : (
-              <div className="h-64 sm:h-80 min-h-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis
-                      dataKey="timestamp"
-                      tickFormatter={formatTimestamp}
-                      fontSize={11}
-                      tickMargin={6}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis fontSize={11} width={40} />
-                    <Tooltip
-                      labelFormatter={(label) => formatTimestamp(String(label))}
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "var(--radius)",
-                        fontSize: "12px",
-                      }}
-                    />
-                    <Legend iconSize={10} iconType="line" />
-                    {displaySeries.map((series, i) => (
-                      <Line
-                        key={series}
-                        type="monotone"
-                        dataKey={series}
-                        stroke={seriesColors[i % seriesColors.length]}
-                        strokeWidth={2}
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
+              <div className="h-64 sm:h-80 overflow-hidden">
+                <Chart
+                  type="area"
+                  height="100%"
+                  series={chartSeries}
+                  options={{
+                    chart: {
+                      id: "telemetry-chart",
+                      toolbar: { show: false },
+                      zoom: { enabled: false },
+                      fontFamily: 'inherit',
+                    },
+                    colors: availableSeries.filter((s) => selectedSeries.length === 0 || selectedSeries.includes(s)).length > 0
+                      ? availableSeries
+                          .filter((s) => selectedSeries.length === 0 || selectedSeries.includes(s))
+                          .map((s, i) => getSeriesColor(s, availableSeries.indexOf(s) >= 0 ? availableSeries.indexOf(s) : i))
+                      : VIBRANT_COLORS,
+                    dataLabels: { enabled: false },
+                    stroke: { curve: 'smooth', width: 3 },
+                    fill: {
+                      type: 'gradient',
+                      gradient: {
+                        shadeIntensity: 1,
+                        opacityFrom: 0.6,
+                        opacityTo: 0.05,
+                        stops: [20, 100]
+                      }
+                    },
+                    xaxis: {
+                      type: 'datetime',
+                      labels: {
+                        style: { fontSize: '11px', colors: '#94a3b8' },
+                        datetimeUTC: false,
+                      },
+                      axisBorder: { show: false },
+                      axisTicks: { show: false },
+                    },
+                    yaxis: {
+                      labels: {
+                        style: { fontSize: '11px', colors: '#94a3b8' },
+                      },
+                    },
+                    tooltip: {
+                      x: { format: 'dd MMM, HH:mm' },
+                      theme: 'light',
+                    },
+                    grid: {
+                      borderColor: 'rgba(0,0,0,0.05)',
+                      strokeDashArray: 4,
+                    },
+                    legend: {
+                      show: true,
+                      position: 'top',
+                      horizontalAlign: 'right',
+                      fontSize: '11px',
+                    },
+                  }}
+                />
               </div>
             )}
           </CardContent>
@@ -401,14 +433,18 @@ export default function DeviceDetailPage() {
         {/* Data Table */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Data Table</CardTitle>
-            <CardDescription>
-              {tableData.length > 0
-                ? `${tableData.length} records · Halaman ${historyPage}`
-                : "Tidak ada data"}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Data Table</CardTitle>
+                <CardDescription>
+                  {tableData.length > 0
+                    ? `${tableData.length} records · Halaman ${historyPage}`
+                    : "Tidak ada data"}
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent>
             {historyLoading ? (
               <Skeleton className="h-48 w-full" />
             ) : tableData.length === 0 ? (
@@ -416,41 +452,94 @@ export default function DeviceDetailPage() {
                 <p className="text-muted-foreground">Tidak ada data untuk rentang waktu ini</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-4 py-2 text-left font-medium text-muted-foreground">
-                      Timestamp
-                    </th>
-                    {availableSeries.map((col) => (
-                      <th key={col} className="px-4 py-2 text-left font-medium text-muted-foreground capitalize">
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.slice(0, 20).map((record, i) => (
-                    <tr key={i} className="border-b">
-                      <td className="px-4 py-2 font-mono text-xs">
-                        {record.timestamp}
-                      </td>
-                      {availableSeries.map((key) => {
-                        const val = record.fields[key];
-                        return (
-                          <td key={key} className="px-4 py-2 font-mono text-xs">
-                            {val !== undefined
-                              ? typeof val === "number"
-                                ? val.toFixed(4)
-                                : String(val)
-                              : "-"}
+              <div className="space-y-4">
+                <div className="rounded-xl overflow-hidden border-none shadow-none">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-muted/50 border-none">
+                      <tr>
+                        <th className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Timestamp
+                        </th>
+                        {availableSeries.map((key) => (
+                          <th key={key} className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-none">
+                      {tableData.map((record, i) => (
+                        <tr key={i} className="hover:bg-muted/50 even:bg-muted/30 transition-colors h-16 border-none">
+                          <td className="px-6 py-4 text-center font-mono text-xs">
+                            {formatTimestamp(record.timestamp)}
                           </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          {availableSeries.map((key) => {
+                            const val = record.fields[key];
+                            return (
+                              <td key={key} className="px-6 py-4 text-center font-mono text-xs">
+                                {val !== undefined
+                                  ? typeof val === "number"
+                                    ? val.toFixed(4)
+                                    : String(val)
+                                  : "-"}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination below table */}
+                <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Tampilkan</span>
+                    <select
+                      value={limit}
+                      onChange={(e) => {
+                        setLimit(Number(e.target.value));
+                        setHistoryPage(1);
+                      }}
+                      className="h-8 w-16 rounded-md border border-input bg-background px-2 py-1 text-xs shadow-sm outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {[10, 20, 50, 100].map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-muted-foreground">baris</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                      disabled={historyPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Sebelumnya
+                    </Button>
+                    <div className="flex items-center gap-1 px-2 text-xs font-medium">
+                      <span>Hal. {historyPage}</span>
+                      {hasMore && <span className="text-muted-foreground">...</span>}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={() => setHistoryPage((p) => p + 1)}
+                      disabled={!hasMore}
+                    >
+                      Selanjutnya
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

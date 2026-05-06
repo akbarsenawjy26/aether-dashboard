@@ -19,6 +19,8 @@ import { formatDate } from "@/lib/utils";
 const createSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").max(100),
   serial_number: z.string().min(1, "Serial number wajib diisi").max(50),
+  alias: z.string().max(100).optional().or(z.literal("")),
+  notes: z.string().max(500).optional().or(z.literal("")),
   type: z.enum(["sensor", "gateway", "controller", "other"]),
   location_guid: z.string().optional(),
 });
@@ -90,7 +92,7 @@ export default function DevicesPage() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <HardDrive className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-medium">{row.original.name}</span>
+          <span className="font-medium">{row.original.alias || row.original.name}</span>
         </div>
       ),
     },
@@ -174,7 +176,6 @@ export default function DevicesPage() {
     { name: "name" as const, label: "Nama Device", type: "text" as const, required: true, placeholder: "Sensor Suhu #1" },
     { name: "serial_number" as const, label: "Serial Number", type: "text" as const, required: true, placeholder: "SN-001" },
     { name: "type" as const, label: "Tipe", type: "select" as const, required: true, options: DEVICE_TYPES },
-    { name: "location_guid" as const, label: "Lokasi", type: "select" as const, options: locationOptions },
   ];
 
   const updateFields = createFields;
@@ -232,8 +233,8 @@ export default function DevicesPage() {
         createFields={createFields}
         updateFields={updateFields}
         formSchema={{ create: createSchema, update: updateSchema }}
-        onCreate={createMutation.mutateAsync}
-        onUpdate={async (guid, data) => updateMutation.mutateAsync({ guid, data })}
+        onCreate={async (data) => createMutation.mutateAsync({ ...data, alias: data.name })}
+        onUpdate={async (guid, data) => updateMutation.mutateAsync({ guid, data: { ...data, alias: data.name } })}
         onDelete={deleteMutation.mutateAsync}
         getGuid={(row) => row.guid}
         itemName={(row) => row.name}

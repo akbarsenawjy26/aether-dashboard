@@ -35,9 +35,12 @@ export default function InstallationPointsPage() {
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
   const [search] = React.useState("");
+  
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [quickDeviceOpen, setQuickDeviceOpen] = React.useState(false);
+  const [quickLocationOpen, setQuickLocationOpen] = React.useState(false);
   const [selectedRow, setSelectedRow] = React.useState<InstallationPoint | null>(null);
 
   const { data, isLoading, isFetching } = useQuery({
@@ -55,6 +58,23 @@ export default function InstallationPointsPage() {
   const { data: locationData } = useQuery({
     queryKey: ["locations-all"],
     queryFn: () => locationApi.list({ limit: 1000 }).then((r) => r.items ?? []),
+  });
+
+  // Quick Create Mutations
+  const quickDeviceMutation = useMutation({
+    mutationFn: (data: any) => deviceApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["devices-all"] });
+      setQuickDeviceOpen(false);
+    },
+  });
+
+  const quickLocationMutation = useMutation({
+    mutationFn: (data: any) => locationApi.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations-all"] });
+      setQuickLocationOpen(false);
+    },
   });
 
   const createMutation = useMutation({
@@ -141,15 +161,31 @@ export default function InstallationPointsPage() {
     },
   ];
 
-  const deviceOptions = deviceData?.map((d) => ({ value: d.guid, label: `${d.name} (${d.serial_number})` })) ?? [];
-  const locationOptions = locationData?.map((l) => ({ value: l.guid, label: l.name })) ?? [];
+  const deviceOptions = Array.isArray(deviceData) 
+    ? deviceData.map((d) => ({ value: d.guid, label: d.alias || d.name })) 
+    : [];
+  const locationOptions = Array.isArray(locationData) 
+    ? locationData.map((l) => ({ value: l.guid, label: l.name })) 
+    : [];
 
   const fields = [
     { name: "name" as const, label: "Nama Installation Point", type: "text" as const, required: true, placeholder: "Sensor Lantai 1" },
-    { name: "device_guid" as const, label: "Device", type: "select" as const, options: deviceOptions },
-    { name: "location_guid" as const, label: "Lokasi", type: "select" as const, options: locationOptions },
+    { 
+      name: "device_guid" as const, 
+      label: "Device", 
+      type: "select" as const, 
+      options: deviceOptions,
+      onAddClick: () => setQuickDeviceOpen(true)
+    },
+    { 
+      name: "location_guid" as const, 
+      label: "Lokasi", 
+      type: "select" as const, 
+      options: locationOptions,
+      onAddClick: () => setQuickLocationOpen(true)
+    },
     { name: "installed_at" as const, label: "Tanggal Instalasi", type: "text" as const, placeholder: "2026-01-15" },
-    { name: "notes" as const, label: "Catatan", type: "text" as const, placeholder: "Catatan tambahan..." },
+    { name: "notes" as const, label: "Catatan", type: "textarea" as const, placeholder: "Catatan tambahan..." },
   ];
 
   const items = data?.items ?? [];
@@ -187,6 +223,7 @@ export default function InstallationPointsPage() {
         </CardContent>
       </Card>
 
+      {/* Main Installation Point Dialog */}
       <CrudDialogs
         title="Installation Point"
         createOpen={createOpen}
@@ -205,6 +242,77 @@ export default function InstallationPointsPage() {
         onDelete={deleteMutation.mutateAsync}
         getGuid={(row) => row.guid}
         itemName={(row) => row.name}
+      />
+
+      {/* Quick Create Device Dialog */}
+      <CrudDialogs
+        title="Device"
+        createOpen={quickDeviceOpen}
+        editOpen={false}
+        deleteOpen={false}
+        setCreateOpen={setQuickDeviceOpen}
+        setEditOpen={() => {}}
+        setDeleteOpen={() => {}}
+        selectedRow={null}
+        createFields={[
+          { name: "name", label: "Nama Device", type: "text", required: true, placeholder: "Sensor Suhu #1" },
+          { name: "serial_number", label: "Serial Number", type: "text", required: true, placeholder: "SN-001" },
+          { name: "alias", label: "Alias", type: "text", placeholder: "Sensor Ruang Server" },
+          { 
+            name: "type", 
+            label: "Tipe", 
+            type: "select", 
+            required: true, 
+            options: [
+              { value: "sensor", label: "Sensor" },
+              { value: "gateway", label: "Gateway" },
+              { value: "controller", label: "Controller" },
+              { value: "other", label: "Other" },
+            ] 
+          },
+          { name: "notes", label: "Catatan", type: "textarea", placeholder: "Sensor untuk monitoring..." },
+        ]}
+        updateFields={[]}
+        formSchema={{ 
+          create: z.object({
+            name: z.string().min(1),
+            serial_number: z.string().min(1),
+            alias: z.string().optional(),
+            type: z.string(),
+            notes: z.string().optional(),
+          }), 
+          update: z.object({}) 
+        }}
+        onCreate={quickDeviceMutation.mutateAsync}
+        onUpdate={async () => {}}
+        onDelete={async () => {}}
+      />
+
+      {/* Quick Create Location Dialog */}
+      <CrudDialogs
+        title="Lokasi"
+        createOpen={quickLocationOpen}
+        editOpen={false}
+        deleteOpen={false}
+        setCreateOpen={setQuickLocationOpen}
+        setEditOpen={() => {}}
+        setDeleteOpen={() => {}}
+        selectedRow={null}
+        createFields={[
+          { name: "name", label: "Nama Lokasi", type: "text", required: true, placeholder: "Kantor Pusat Jakarta" },
+          { name: "notes", label: "Catatan", type: "textarea", placeholder: "Lokasi utama perusahaan" },
+        ]}
+        updateFields={[]}
+        formSchema={{ 
+          create: z.object({
+            name: z.string().min(1),
+            notes: z.string().optional(),
+          }), 
+          update: z.object({}) 
+        }}
+        onCreate={quickLocationMutation.mutateAsync}
+        onUpdate={async () => {}}
+        onDelete={async () => {}}
       />
     </div>
   );
