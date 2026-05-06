@@ -170,12 +170,17 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center gap-2 ml-auto">
           {/* Column visibility */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="outline" size="sm">
-                <Columns3 className="h-4 w-4 mr-2 hidden sm:inline" />
-                Columns
-              </Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground px-3 py-2 h-8 w-full sm:w-auto"
+                >
+                  <Columns3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Columns</span>
+                </button>
+              }
+            />
             <DropdownMenuContent align="end">
               {table
                 .getAllColumns()
@@ -377,13 +382,13 @@ export function ActionCell(props: {
         render={
           <button
             type="button"
-            className="inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground border border-border"
             aria-label="Open menu"
-          />
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
         }
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </DropdownMenuTrigger>
+      />
       <DropdownMenuContent align="end">
         {props.onView && (
           <DropdownMenuItem onClick={props.onView}>
