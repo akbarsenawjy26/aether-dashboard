@@ -73,7 +73,9 @@ interface CrudDialogsProps<T, TCreate extends z.ZodType, TUpdate extends z.ZodTy
   getGuid?: (row: T) => string;
 }
 
-export function CrudDialogs<T>(props: CrudDialogsProps<T, any, any>) {
+export function CrudDialogs<T, TCreate extends z.ZodType, TUpdate extends z.ZodType>(
+  props: CrudDialogsProps<T, TCreate, TUpdate>
+) {
   const {
     createOpen, editOpen, deleteOpen,
     setCreateOpen, setEditOpen, setDeleteOpen,
@@ -85,28 +87,30 @@ export function CrudDialogs<T>(props: CrudDialogsProps<T, any, any>) {
 
   const [submitting, setSubmitting] = React.useState(false);
 
-  const handleCreate = async (data: any) => {
+  const handleCreate = async (data: z.infer<TCreate>) => {
     setSubmitting(true);
     try {
       await onCreate(data);
       toast.success(`${title} berhasil dibuat`);
       setCreateOpen(false);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error?.message ?? `${title} gagal dibuat`);
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(error?.response?.data?.error?.message ?? `${title} gagal dibuat`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleUpdate = async (data: any) => {
+  const handleUpdate = async (data: z.infer<TUpdate>) => {
     if (!props.getGuid || !selectedRow) return;
     setSubmitting(true);
     try {
       await onUpdate(props.getGuid(selectedRow), data);
       toast.success(`${title} berhasil diupdate`);
       setEditOpen(false);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error?.message ?? `${title} gagal diupdate`);
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(error?.response?.data?.error?.message ?? `${title} gagal diupdate`);
     } finally {
       setSubmitting(false);
     }
@@ -119,8 +123,9 @@ export function CrudDialogs<T>(props: CrudDialogsProps<T, any, any>) {
       await onDelete(props.getGuid(selectedRow));
       toast.success(`${title} berhasil dihapus`);
       setDeleteOpen(false);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error?.message ?? `${title} gagal dihapus`);
+    } catch (e: unknown) {
+      const error = e as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(error?.response?.data?.error?.message ?? `${title} gagal dihapus`);
     } finally {
       setSubmitting(false);
     }
@@ -167,7 +172,7 @@ export function CrudDialogs<T>(props: CrudDialogsProps<T, any, any>) {
               fields={updateFields}
               schema={formSchema.update}
               onSubmit={handleUpdate}
-              defaultValues={selectedRow as any}
+              defaultValues={selectedRow as z.infer<TUpdate>}
               isLoading={submitting}
               submitLabel="Update"
             />
@@ -202,7 +207,7 @@ export function CrudDialogs<T>(props: CrudDialogsProps<T, any, any>) {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// GenericForm - a simple generic form component
 function GenericForm(props: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fields: FormFieldConfig<any>[];

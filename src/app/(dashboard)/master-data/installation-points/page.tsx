@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { z } from "zod";
 import { Anchor, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DataTable, ActionCell } from "@/components/shared/data-table";
@@ -28,16 +27,14 @@ const createSchema = z.object({
   installed_at: z.string().optional(),
 });
 
-const updateSchema = createSchema;
-
-type CreateForm = z.infer<typeof createSchema>;
+const updateSchema = createSchema.partial();
 
 export default function InstallationPointsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
-  const [search, setSearch] = React.useState("");
+  const [search] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);

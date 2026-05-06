@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download, Wifi, WifiOff, Clock, Radio } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio } from "lucide-react";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { deviceApi } from "@/lib/api/devices";
 import { cn } from "@/lib/utils";
@@ -48,20 +49,15 @@ export default function DeviceDetailPage() {
 
   // History state
   const [selectedPreset, setSelectedPreset] = useState(24);
-  const [chartData, setChartData] = useState<Record<string, unknown>[]>([]);
-  const [tableData, setTableData] = useState<{ timestamp: string; fields: Record<string, number | string | boolean> }[]>([]);
-  const [availableSeries, setAvailableSeries] = useState<string[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
 
   const STALE_THRESHOLD_MS = 30_000;
 
   // Fetch device info
   useEffect(() => {
     if (!deviceSn) return;
-    deviceApi.get(deviceSn).then((r) => {
+    deviceApi.get(deviceSn).then(() => {
       // Device info loaded
     }).catch(() => {
       // Handle error silently
@@ -115,89 +111,56 @@ export default function DeviceDetailPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch history data
-  const fetchHistory = useCallback(async () => {
-    if (!deviceSn) return;
+  // Fetch history with TanStack Query
+  const end = new Date();
+  const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
 
-    setHistoryLoading(true);
-    try {
-      const end = new Date();
-      const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
-
-      const response = await telemetryApi.history(deviceSn, {
+  const { isLoading: historyLoading, data: historyResponse } = useQuery({
+    queryKey: ["telemetry-history", deviceSn, selectedPreset, historyPage],
+    queryFn: () =>
+      telemetryApi.history(deviceSn!, {
         start: start.toISOString(),
         stop: end.toISOString(),
         limit: 20,
         order: "desc",
         page: historyPage,
-      });
+      }),
+    enabled: !!deviceSn,
+  });
 
-      // response.data is HistoryResponse: { success, data: TelemetryRecord[], pagination }
-      const historyResult = response.data;
-      const historyRecords = historyResult?.data ?? [];
+  // Transform history response to chart data
+  const historyRecords = historyResponse?.data?.data ?? [];
 
-      // Update pagination state
-      setHasMore(historyResult.pagination?.has_more ?? false);
+  // Derived state using useMemo (no setState in effect)
+  const tableData = useMemo(() => historyRecords, [historyRecords]);
 
-      if (Array.isArray(historyRecords)) {
-        // Store raw records for table
-        setTableData(historyRecords);
+  const chartData = useMemo(() => {
+    if (historyRecords.length === 0) return [];
+    return historyRecords
+      .map((record) => ({
+        timestamp: record.timestamp,
+        ...record.fields,
+      }))
+      .reverse();
+  }, [historyRecords]);
 
-        // Transform TelemetryRecord[] to chart format
-        // Backend format: { timestamp: string, fields: { key: value } }
-        // Chart format: { timestamp: string, key: value, ... }
-        const transformed = historyRecords
-          .map((record) => ({
-            timestamp: record.timestamp,
-            ...record.fields,
-          }))
-          .reverse();
+  const availableSeries = useMemo(() => {
+    if (historyRecords.length === 0) return [];
+    const fieldKeys = new Set<string>();
+    historyRecords.forEach((record) => {
+      Object.keys(record.fields).forEach((key) => fieldKeys.add(key));
+    });
+    return Array.from(fieldKeys);
+  }, [historyRecords]);
 
-        setChartData(transformed);
-
-        // Collect all unique field keys as series
-        const fieldKeys = new Set<string>();
-        historyRecords.forEach((record) => {
-          Object.keys(record.fields).forEach((key) => fieldKeys.add(key));
-        });
-        const series = Array.from(fieldKeys);
-        setAvailableSeries(series);
-        setSelectedSeries([]);
-      }
-    } catch (err) {
-      console.error("Failed to fetch history:", err);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [deviceSn, selectedPreset, historyPage]);
-
+  // Reset selected series when history changes
   useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting selection when time range changes is intentional
+    setSelectedSeries([]);
+  }, [historyRecords]);
 
-  const handleExportCSV = () => {
-    if (chartData.length === 0) return;
-    const columns = availableSeries.length > 0 
-      ? ["timestamp", ...availableSeries]
-      : Object.keys(chartData[0] || {});
-    
-    const header = columns.join(",");
-    const rows = chartData.map((row) =>
-      columns.map((col) => {
-        const val = row[col];
-        return typeof val === "number" ? val.toFixed(4) : String(val ?? "");
-      }).join(",")
-    ).join("\n");
-    
-    const csv = `${header}\n${rows}`;
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `telemetry_${deviceSn}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Update hasMore
+  const hasMore = historyResponse?.data?.pagination?.has_more ?? false;
 
   const toggleSeries = (series: string) => {
     setSelectedSeries((prev) =>
@@ -370,7 +333,7 @@ export default function DeviceDetailPage() {
             {/* Series Toggle */}
             {availableSeries.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {availableSeries.map((series, i) => (
+                {availableSeries.map((series) => (
                   <Button
                     key={series}
                     variant={selectedSeries.includes(series) || selectedSeries.length === 0 ? "default" : "outline"}

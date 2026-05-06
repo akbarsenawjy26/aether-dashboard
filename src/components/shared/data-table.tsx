@@ -64,7 +64,7 @@ export function DataTable<TData, TValue>({
   searchKey,
   searchPlaceholder = "Cari...",
   pageSizes = [10, 25, 50],
-  onRowAction,
+  onRowAction, // eslint-disable-line @typescript-eslint/no-unused-vars -- kept for future use
   isLoading,
   pagination,
 }: DataTableProps<TData, TValue>) {
@@ -280,7 +280,7 @@ export function DataTable<TData, TValue>({
 }
 
 // Action cell for CRUD operations
-export function ActionCell<T>(props: {
+export function ActionCell(props: {
   onView?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;

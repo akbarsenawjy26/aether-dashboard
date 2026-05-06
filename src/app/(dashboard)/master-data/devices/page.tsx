@@ -5,10 +5,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
 import { z } from "zod";
-import { HardDrive, Plus, Radio } from "lucide-react";
+import { HardDrive, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { DataTable, ActionCell } from "@/components/shared/data-table";
 import { CrudDialogs } from "@/components/shared/crud-dialogs";
 import { deviceApi, type Device, type CreateDeviceRequest } from "@/lib/api/devices";
@@ -23,10 +23,7 @@ const createSchema = z.object({
   location_guid: z.string().optional(),
 });
 
-const updateSchema = createSchema;
-
-type CreateForm = z.infer<typeof createSchema>;
-type UpdateForm = z.infer<typeof updateSchema>;
+const updateSchema = createSchema.partial();
 
 const DEVICE_TYPES = [
   { value: "sensor", label: "Sensor" },
@@ -42,7 +39,7 @@ export default function DevicesPage() {
   // Pagination state
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
-  const [search, setSearch] = React.useState("");
+  const [search] = React.useState("");
 
   // Dialog states
   const [createOpen, setCreateOpen] = React.useState(false);

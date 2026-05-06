@@ -14,20 +14,13 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuthStore } from "@/lib/stores/authStore";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export function Header() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const { user } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
-
-  // Avoid hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
   };
 
   const initials = user?.name
@@ -51,7 +44,7 @@ export function Header() {
           onClick={toggleTheme}
           className="h-9 w-9"
         >
-          {mounted && theme === "dark" ? (
+          {resolvedTheme === "dark" ? (
             <Sun className="h-4 w-4" />
           ) : (
             <Moon className="h-4 w-4" />

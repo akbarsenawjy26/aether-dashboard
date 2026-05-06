@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
 import { Header } from "@/components/shared/header";
+import { MobileNav } from "@/components/shared/mobile-nav";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { authApi } from "@/lib/api/auth";
 
@@ -56,12 +57,21 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-background">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Desktop Sidebar - hidden on mobile */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile Main Content */}
+      <div className="flex flex-1 flex-col overflow-hidden lg:hidden">
+        <MobileNav />
+        <main className="flex-1 overflow-y-auto p-4 pb-20">{children}</main>
+      </div>
+
+      {/* Desktop Main Content */}
+      <div className="hidden lg:flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );

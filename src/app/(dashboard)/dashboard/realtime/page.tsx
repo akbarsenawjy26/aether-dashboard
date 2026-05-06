@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { SSEReadableClient, SSEDeviceData } from "@/lib/sse/sseClientFetch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
@@ -37,13 +36,12 @@ interface DeviceGroup {
 const STALE_THRESHOLD_MS = 30_000; // 30 seconds
 
 export default function RealtimePage() {
-  const router = useRouter();
   const [deviceGroups, setDeviceGroups] = useState<DeviceGroup[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "disconnected">("connecting");
-  const [deviceCount, setDeviceCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const sseClientRef = { current: null as SSEReadableClient | null };
-  const pausedDataRef = { current: new Map<string, DeviceCardData>() };
+  const [pausedDataCount, setPausedDataCount] = useState(0);
+  const sseClientRef = useRef<SSEReadableClient | null>(null);
+  const pausedDataRef = useRef(new Map<string, DeviceCardData>());
 
   const handleDeviceData = useCallback((data: SSEDeviceData) => {
     if (isPaused) {
@@ -52,6 +50,7 @@ export default function RealtimePage() {
         lastSeen: new Date(),
         isStale: false,
       });
+      setPausedDataCount(pausedDataRef.current.size);
       return;
     }
 
@@ -98,9 +97,8 @@ export default function RealtimePage() {
 
     client.setCallbacks({
       onDeviceData: handleDeviceData,
-      onConnected: (count) => {
+      onConnected: () => {
         setConnectionStatus("connected");
-        setDeviceCount(count);
       },
       onError: () => {
         setConnectionStatus("disconnected");
@@ -142,6 +140,7 @@ export default function RealtimePage() {
       handleDeviceData(data);
     }
     pausedDataRef.current.clear();
+    setPausedDataCount(0);
     setIsPaused(false);
   };
 
@@ -271,7 +270,7 @@ export default function RealtimePage() {
             <CardContent className="flex items-center gap-3 py-3 px-4">
               <Clock className="h-4 w-4" />
               <span className="text-sm font-medium">
-                Stream paused — {pausedDataRef.current.size} data points buffering
+                Stream paused — {pausedDataCount} data points buffering
               </span>
               <Button size="sm" variant="secondary" onClick={handleResume}>
                 Lanjut

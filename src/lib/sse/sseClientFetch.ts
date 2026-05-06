@@ -35,8 +35,6 @@ interface DeviceEntry {
   telemetry: Record<string, unknown>;
 }
 
-type DevicePayload = Record<string, DeviceEntry[]>;
-
 export type SSEEventType = "connected" | "device_data" | "error" | "heartbeat";
 
 export interface SSEMessage {
@@ -52,7 +50,6 @@ type SSEConnectedCallback = (count: number) => void;
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY = 3000;
 const KEEPALIVE_INTERVAL = 30000; // 30s keepalive ping
-const TOKEN_REFRESH_BEFORE_MS = 60000; // Refresh token 1 minute before expiry (if expiry known)
 
 // Track if we're currently refreshing token to prevent concurrent refreshes
 let isRefreshingToken = false;

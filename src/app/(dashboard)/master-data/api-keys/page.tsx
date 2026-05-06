@@ -4,12 +4,11 @@ import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { z } from "zod";
-import { Key, Plus, Copy, Check, Trash2, Eye, EyeOff } from "lucide-react";
+import { Key, Plus, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -57,7 +56,7 @@ export default function APIKeysPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
-  const [search, setSearch] = React.useState("");
+  const [search] = React.useState("");
 
   // Dialog states
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -94,8 +93,9 @@ export default function APIKeysPage() {
       }
       form.reset();
     },
-    onError: (e: any) => {
-      toast.error(e?.response?.data?.error?.message ?? "Gagal membuat API key");
+    onError: (e: unknown) => {
+      const error = e as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(error?.response?.data?.error?.message ?? "Gagal membuat API key");
     },
   });
 
@@ -106,8 +106,9 @@ export default function APIKeysPage() {
       setDeleteOpen(false);
       toast.success("API key berhasil direvoke");
     },
-    onError: (e: any) => {
-      toast.error(e?.response?.data?.error?.message ?? "Gagal merevoke API key");
+    onError: (e: unknown) => {
+      const error = e as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(error?.response?.data?.error?.message ?? "Gagal merevoke API key");
     },
   });
 

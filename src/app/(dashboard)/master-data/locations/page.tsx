@@ -20,16 +20,13 @@ const createSchema = z.object({
   longitude: z.coerce.number().optional(),
 });
 
-const updateSchema = createSchema;
-
-type CreateForm = z.infer<typeof createSchema>;
-type UpdateForm = z.infer<typeof updateSchema>;
+const updateSchema = createSchema.partial();
 
 export default function LocationsPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
-  const [search, setSearch] = React.useState("");
+  const [search] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);

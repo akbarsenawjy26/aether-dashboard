@@ -12,8 +12,6 @@ import { deviceApi } from "@/lib/api/devices";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-
 const TIME_PRESETS = [
   { label: "1 Jam", hours: 1 },
   { label: "6 Jam", hours: 6 },
@@ -225,7 +223,7 @@ export default function HistoryPage() {
             <>
               {/* Series toggle */}
               <div className="flex flex-wrap gap-2 mb-4">
-                {availableSeries.map((series, i) => (
+                {availableSeries.map((series) => (
                   <Button
                     key={series}
                     variant={selectedSeries.includes(series) || selectedSeries.length === 0 ? "default" : "outline"}
@@ -302,8 +300,8 @@ export default function HistoryPage() {
                 </tr>
               </thead>
               <tbody>
-                {historyData.slice(0, 50).map((record, i) => (
-                  <tr key={i} className="border-b">
+                {historyData.slice(0, 50).map((record, idx) => (
+                  <tr key={idx} className="border-b">
                     <td className="px-4 py-2 font-mono text-xs">
                       {record.timestamp}
                     </td>

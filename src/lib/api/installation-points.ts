@@ -1,5 +1,4 @@
 import { apiClient } from "./client";
-import type { User } from "./auth";
 
 export interface InstallationPoint {
   guid: string;

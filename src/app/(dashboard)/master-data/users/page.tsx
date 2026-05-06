@@ -28,9 +28,6 @@ const updateSchema = z.object({
   role: z.enum(["admin", "operator", "viewer"]).optional(),
 });
 
-type CreateForm = z.infer<typeof createSchema>;
-type UpdateForm = z.infer<typeof updateSchema>;
-
 const ROLES = [
   { value: "admin", label: "Admin" },
   { value: "operator", label: "Operator" },
@@ -48,7 +45,7 @@ export default function UsersPage() {
   const { user: currentUser } = useAuthStore();
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(10);
-  const [search, setSearch] = React.useState("");
+  const [search] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);

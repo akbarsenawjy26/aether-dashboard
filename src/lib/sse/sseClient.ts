@@ -65,7 +65,7 @@ export class SSEClient {
 
     try {
       this.eventSource = new EventSource(finalUrl);
-    } catch (err) {
+    } catch {
       this.isConnecting = false;
       this.onError?.("Failed to create EventSource");
       return;
