@@ -42,8 +42,14 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const responseData = error.response?.data;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Check for 401 status OR specific "TOKEN_INVALID" code in response body
+    const isUnauthorized = 
+      error.response?.status === 401 || 
+      responseData?.error?.code === "TOKEN_INVALID";
+
+    if (isUnauthorized && !originalRequest._retry) {
       // If already refreshing, queue this request
       if (isRefreshing) {
         return new Promise((resolve) => {
