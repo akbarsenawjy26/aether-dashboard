@@ -49,7 +49,10 @@ export default function DeviceDetailPage() {
     enabled: !!deviceGuid,
   });
 
-  const deviceSn = deviceInfo?.data?.data?.serial_number;
+  const deviceSn = useMemo(
+    () => deviceInfo?.data?.data?.serial_number,
+    [deviceInfo?.data?.data?.serial_number]
+  );
 
   // Real-time state
   const [deviceData, setDeviceData] = useState<DeviceCardData | null>(null);

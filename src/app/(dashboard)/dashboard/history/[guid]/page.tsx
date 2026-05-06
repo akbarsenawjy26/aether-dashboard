@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,7 +37,10 @@ export default function HistoryPage() {
     enabled: !!deviceGuid,
   });
 
-  const deviceSn = deviceData?.serial_number;
+  const deviceSn = useMemo(
+    () => deviceData?.serial_number,
+    [deviceData?.serial_number]
+  );
 
   const { data: historyResult, isLoading } = useQuery({
     queryKey: ["telemetry-history", deviceSn, selectedPreset, page],
