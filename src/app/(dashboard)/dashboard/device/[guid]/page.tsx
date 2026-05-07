@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { deviceApi } from "@/lib/api/devices";
 import dynamic from "next/dynamic";
-import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio, Bell } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertSettings } from "@/components/device/AlertSettings";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 import { cn } from "@/lib/utils";
@@ -279,7 +281,30 @@ export default function DeviceDetailPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <Tabs defaultValue="overview" className="space-y-6">
+        <div className="sticky top-0 z-10 pt-2 pb-4 bg-background/80 backdrop-blur-sm">
+          <Card className="shadow-lg border-primary/5 p-1">
+            <TabsList className="w-full justify-start bg-muted/20 h-auto p-0 rounded-2xl">
+              <TabsTrigger 
+                value="overview" 
+                className="flex-1 gap-3 py-4 px-12 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50 hover:text-foreground rounded-2xl transition-all duration-300"
+              >
+                <Radio className="h-5 w-5" /> 
+                <span className="font-bold tracking-wider text-sm">OVERVIEW</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="alerts" 
+                className="flex-1 gap-3 py-4 px-12 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50 hover:text-foreground rounded-2xl transition-all duration-300"
+              >
+                <Bell className="h-5 w-5" /> 
+                <span className="font-bold tracking-wider text-sm">ALERT SETTINGS</span>
+              </TabsTrigger>
+            </TabsList>
+          </Card>
+        </div>
+
+        <TabsContent value="overview" className="space-y-6 mt-0">
+          <div className="grid gap-6 lg:grid-cols-3">
         {/* Real-time Card */}
         <Card className="lg:col-span-1">
           <CardHeader>
@@ -552,7 +577,13 @@ export default function DeviceDetailPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="mt-0">
+          <AlertSettings deviceGuid={deviceGuid} availableParameters={availableSeries} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

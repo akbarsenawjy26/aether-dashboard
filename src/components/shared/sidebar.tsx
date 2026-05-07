@@ -14,6 +14,7 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -50,6 +51,11 @@ const navItems: NavItem[] = [
         label: "History",
         href: "/dashboard/history",
         icon: <History className="h-4 w-4" />,
+      },
+      {
+        label: "Alarms",
+        href: "/dashboard/alarms",
+        icon: <Bell className="h-4 w-4" />,
       },
     ],
   },

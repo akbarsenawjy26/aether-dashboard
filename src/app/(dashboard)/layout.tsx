@@ -7,6 +7,8 @@ import { Header } from "@/components/shared/header";
 import { MobileNav } from "@/components/shared/mobile-nav";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { authApi } from "@/lib/api/auth";
+import { AlarmNotificationListener } from "@/components/shared/AlarmNotificationListener";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({
   children,
@@ -56,7 +58,9 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background text-foreground">
+      <AlarmNotificationListener />
+      <Toaster position="top-right" richColors />
       {/* Desktop Sidebar - hidden on mobile */}
       <div className="hidden lg:block">
         <Sidebar />

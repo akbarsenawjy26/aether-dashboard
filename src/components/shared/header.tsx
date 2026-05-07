@@ -5,12 +5,15 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Moon, Sun, Bell, ChevronRight, Home } from "lucide-react";
 import { useAuthStore } from "@/lib/stores/authStore";
+import { useAlarmStore } from "@/lib/stores/alarmStore";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function Header() {
   const { setTheme, resolvedTheme } = useTheme();
   const { user } = useAuthStore();
+  const unreadCount = useAlarmStore((s) => s.unreadCount);
+  const markAllAsRead = useAlarmStore((s) => s.markAllAsRead);
 
   const toggleTheme = () => {
     setTheme(resolvedTheme === "dark" ? "light" : "dark");
@@ -95,10 +98,20 @@ export function Header() {
         </Button>
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-          <Bell className="h-4 w-4" />
-          <span className="sr-only">Notifications</span>
-        </Button>
+        <Link href="/dashboard/alarms" onClick={() => markAllAsRead()}>
+          <Button variant="ghost" size="icon" className="h-9 w-9 relative hover:bg-muted transition-all rounded-full group">
+            <Bell className={cn(
+              "h-4 w-4 transition-transform group-hover:rotate-12",
+              unreadCount > 0 && "text-red-500 fill-red-500/10"
+            )} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-card animate-in zoom-in duration-300">
+                {unreadCount}
+              </span>
+            )}
+            <span className="sr-only">Notifications</span>
+          </Button>
+        </Link>
       </div>
     </header>
   );
