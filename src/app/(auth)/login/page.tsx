@@ -54,64 +54,76 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto sm:mx-0">
-      <CardHeader className="space-y-1 text-center">
-        <div className="flex justify-center mb-2">
-          <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-primary text-primary-foreground">
-            <Radio className="h-5 w-5 sm:h-6 sm:w-6" />
+    <Card className="w-full border-none shadow-none bg-transparent sm:bg-card/40 sm:backdrop-blur-xl sm:border sm:border-white/5 sm:shadow-2xl sm:rounded-3xl transition-all duration-500 hover:bg-card/50">
+      <CardHeader className="space-y-2 text-center sm:text-left pb-8">
+        <div className="flex justify-center sm:justify-start mb-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+            <Radio className="h-6 w-6 animate-pulse" />
           </div>
         </div>
-        <CardTitle className="text-xl sm:text-2xl font-bold">Masuk</CardTitle>
-        <CardDescription>
-          Masukkan email dan password untuk mengakses dashboard
+        <CardTitle className="text-3xl font-black tracking-tight text-foreground">Masuk</CardTitle>
+        <CardDescription className="text-base">
+          Akses dashboard monitoring Aether Node.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="nama@email.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Memuat..." : "Masuk"}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest opacity-70">Email Address</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="email" 
+                        placeholder="admin@aether.io" 
+                        className="bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 h-12 rounded-xl transition-all"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs font-bold uppercase tracking-widest opacity-70">Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        className="bg-white/5 border-white/10 focus:border-primary/50 focus:ring-primary/20 h-12 rounded-xl transition-all"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <Button 
+              type="submit" 
+              className="w-full h-12 rounded-xl font-bold text-sm uppercase tracking-widest bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]" 
+              disabled={form.formState.isSubmitting}
+            >
+              {form.formState.isSubmitting ? "Otentikasi..." : "Akses Dashboard"}
             </Button>
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex flex-col gap-4">
-        <div className="text-center text-sm text-muted-foreground">
-          Lupa password?{" "}
-          <Link href="/forgot-password" className="text-primary hover:underline">
-            Reset password
+      <CardFooter className="flex flex-col gap-6 pt-8">
+        <div className="flex items-center justify-between w-full text-xs font-medium">
+          <Link href="/forgot-password" className="text-muted-foreground hover:text-primary transition-colors">
+            Lupa password?
           </Link>
-        </div>
-        <div className="text-center text-sm text-muted-foreground">
-          Belum punya akun?{" "}
-          <Link href="/register" className="text-primary hover:underline">
-            Daftar
+          <Link href="/register" className="text-primary font-bold hover:underline">
+            Buat Akun
           </Link>
         </div>
       </CardFooter>

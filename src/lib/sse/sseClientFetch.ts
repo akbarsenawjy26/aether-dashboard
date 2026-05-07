@@ -469,7 +469,10 @@ export class SSEReadableClient {
   }
 
   private cleanup() {
-    this.abortController = null;
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
     if (this.keepaliveInterval) {
       clearInterval(this.keepaliveInterval);
       this.keepaliveInterval = undefined;

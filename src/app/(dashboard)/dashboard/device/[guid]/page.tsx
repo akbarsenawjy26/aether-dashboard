@@ -45,10 +45,11 @@ export default function DeviceDetailPage() {
   const deviceGuid = params.guid as string;
 
   // Fetch device info to get device_sn for SSE
-  const { data: deviceInfo } = useQuery({
+  const { data: deviceInfo, refetch: refetchDevice } = useQuery({
     queryKey: ["device", deviceGuid],
     queryFn: () => deviceApi.get(deviceGuid!),
     enabled: !!deviceGuid,
+    staleTime: 0,
   });
 
   const deviceSn = useMemo(
@@ -121,7 +122,7 @@ export default function DeviceDetailPage() {
   const end = new Date();
   const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
 
-  const { isLoading: historyLoading, data: historyResponse } = useQuery({
+  const { isLoading: historyLoading, data: historyResponse, refetch: refetchHistory } = useQuery({
     queryKey: ["telemetry-history", deviceSn, selectedPreset, historyPage, limit],
     queryFn: () =>
       telemetryApi.history(deviceSn!, {
@@ -132,7 +133,15 @@ export default function DeviceDetailPage() {
         page: historyPage,
       }),
     enabled: !!deviceSn,
+    staleTime: 0,
   });
+
+  // Force refetch on mount
+  useEffect(() => {
+    if (deviceGuid) refetchDevice();
+    if (deviceSn) refetchHistory();
+    router.refresh();
+  }, [deviceGuid, deviceSn, refetchDevice, refetchHistory, router]);
 
   // Transform history response to chart data
   const historyRecords = historyResponse?.data?.data ?? [];
