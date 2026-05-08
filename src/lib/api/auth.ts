@@ -6,7 +6,8 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
 }
@@ -20,9 +21,9 @@ export interface AuthResponse {
 
 export interface User {
   guid: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  role: "admin" | "operator" | "viewer";
   created_at: string;
   updated_at: string;
 }

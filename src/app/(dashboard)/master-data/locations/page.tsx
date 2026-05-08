@@ -15,9 +15,7 @@ import { formatDate } from "@/lib/utils";
 
 const createSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").max(100),
-  address: z.string().optional(),
-  latitude: z.coerce.number().optional(),
-  longitude: z.coerce.number().optional(),
+  notes: z.string().max(500).optional().or(z.literal("")),
 });
 
 const updateSchema = createSchema.partial();
@@ -68,24 +66,13 @@ export default function LocationsPage() {
       ),
     },
     {
-      accessorKey: "address",
-      header: "Alamat",
-      cell: ({ row }) => row.original.address ?? <span className="text-muted-foreground">—</span>,
-    },
-    {
-      accessorKey: "latitude",
-      header: "Koordinat",
-      cell: ({ row }) => {
-        const { latitude, longitude } = row.original;
-        if (latitude && longitude) {
-          return (
-            <code className="text-xs font-mono">
-              {latitude.toFixed(5)}, {longitude.toFixed(5)}
-            </code>
-          );
-        }
-        return <span className="text-muted-foreground">—</span>;
-      },
+      accessorKey: "notes",
+      header: "Catatan",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground truncate max-w-[200px] inline-block">
+          {row.original.notes || "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "device_count",
@@ -114,31 +101,29 @@ export default function LocationsPage() {
   ];
 
   const fields = [
-    { name: "name" as const, label: "Nama Lokasi", type: "text" as const, required: true, placeholder: "Gedung A" },
-    { name: "address" as const, label: "Alamat", type: "text" as const, placeholder: "Jl. Sudirman No. 1" },
-    { name: "latitude" as const, label: "Latitude", type: "number" as const, placeholder: "-6.2" },
-    { name: "longitude" as const, label: "Longitude", type: "number" as const, placeholder: "106.8" },
+    { name: "name" as const, label: "Nama Lokasi", type: "text" as const, required: true, placeholder: "Kantor Pusat Jakarta" },
+    { name: "notes" as const, label: "Catatan", type: "textarea" as const, placeholder: "Lokasi utama perusahaan..." },
   ];
 
   const items = data?.items ?? [];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Locations</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Locations</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Kelola lokasi instalasi — {data?.total ?? 0} lokasi
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Tambah Lokasi
         </Button>
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0 sm:p-6">
           <DataTable
             columns={columns}
             data={items}

@@ -69,7 +69,9 @@ export default function DashboardLayout({
       {/* Mobile Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden lg:hidden">
         <MobileNav />
-        <main className="flex-1 overflow-y-auto p-4 pb-20">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
+          {children}
+        </main>
       </div>
 
       {/* Desktop Main Content */}

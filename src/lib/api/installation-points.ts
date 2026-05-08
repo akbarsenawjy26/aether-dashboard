@@ -7,7 +7,6 @@ export interface InstallationPoint {
   device_sn?: string;
   location_guid?: string;
   location_name?: string;
-  installed_at?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -32,7 +31,6 @@ export interface CreateInstallationPointRequest {
   name: string;
   device_guid?: string;
   location_guid?: string;
-  installed_at?: string;
   notes?: string;
 }
 

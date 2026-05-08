@@ -4,158 +4,37 @@ import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { deviceApi } from "@/lib/api/devices";
 import { telemetryApi } from "@/lib/api/telemetry";
-import { History, Search, HardDrive, ArrowRight, Calendar, Layers, Settings2 } from "lucide-react";
+import { HardDrive } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 export default function HistoryListPage() {
-  const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [selectedType, setSelectedType] = useState<string>("all");
-
-  const { data: devices, isLoading } = useQuery({
+  const { data: devices } = useQuery({
     queryKey: ["devices"],
     queryFn: () => deviceApi.list({ limit: 1000 }),
   });
-
-  const filteredDevices = (devices?.items ?? []).filter((device) => {
-    const deviceName = device.name || device.alias || "";
-    const serialNumber = device.serial_number || "";
-    const matchesSearch =
-      search === "" ||
-      deviceName.toLowerCase().includes(search.toLowerCase()) ||
-      serialNumber.toLowerCase().includes(search.toLowerCase());
-    const matchesType = selectedType === "all" || device.type === selectedType;
-    return matchesSearch && matchesType;
-  });
-
-  const deviceTypes = Array.from(
-    new Set((devices?.items ?? []).map((d) => d.type).filter(Boolean))
-  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">History</h1>
-        <h3 className="text-muted-foreground">
-          Pilih device untuk melihat data telemetry historis
-        </h3>
+        <h1 className="text-3xl font-bold tracking-tight">Compare History</h1>
+        <p className="text-muted-foreground">
+          Bandingkan telemetry dari beberapa device secara side-by-side
+        </p>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Cari device..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={selectedType === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedType("all")}
-                className="gap-2"
-              >
-                <Layers className="h-4 w-4" />
-                Semua
-              </Button>
-              {deviceTypes.map((type) => (
-                <Button
-                  key={type}
-                  variant={selectedType === type ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedType(type)}
-                  className="gap-2"
-                >
-                  <Settings2 className="h-4 w-4" />
-                  {type}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Device List */}
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="h-32 animate-pulse" />
-          ))}
-        </div>
-      ) : filteredDevices?.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <HardDrive className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Tidak ada device</h3>
-            <h3 className="text-muted-foreground text-sm">
-              {search ? "Tidak ada device yang cocok dengan pencarian" : "Belum ada device yang terdaftar"}
-            </h3>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredDevices?.map((device) => (
-            <Card
-              key={device.guid}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => router.push(`/dashboard/history/${device.guid}`)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-sm truncate">{device.name}</CardTitle>
-                    <h3 className="text-xs text-muted-foreground font-mono mt-1">
-                      {device.serial_number}
-                    </h3>
-                  </div>
-                    <Badge variant="outline" className="ml-2 shrink-0 capitalize">
-                    {device.type}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <History className="h-3 w-3" />
-                    <span>Telemetry history</span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
       {/* Compare History Section */}
-      <div className="pt-8 border-t">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">Compare History</h2>
-          <p className="text-muted-foreground text-sm">
-            Bandingkan telemetry dari 2 device berbeda secara side-by-side
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ChartPanel deviceList={devices?.items ?? []} />
-          <ChartPanel deviceList={devices?.items ?? []} />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartPanel deviceList={devices?.items ?? []} />
+        <ChartPanel deviceList={devices?.items ?? []} />
       </div>
     </div>
   );
@@ -173,6 +52,8 @@ const SERIES_COLORS = ["#10392d", "#3b82f6", "#f59e0b", "#ef4444", "#06b6d4", "#
 function ChartPanel({ deviceList }: { deviceList: any[] }) {
   const [selectedGuid, setSelectedGuid] = useState<string>("");
   const [selectedPreset, setSelectedPreset] = useState(24);
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
 
   // Automatically select the first device once the list is loaded
@@ -187,15 +68,27 @@ function ChartPanel({ deviceList }: { deviceList: any[] }) {
     [deviceList, selectedGuid]
   );
 
-  const { data: historyResult, isLoading } = useQuery({
-    queryKey: ["telemetry-history", currentDevice?.serial_number, selectedPreset],
+  const { data: historyResult, isLoading, refetch } = useQuery({
+    queryKey: ["telemetry-history", currentDevice?.serial_number, selectedPreset, customStart, customEnd],
     queryFn: () => {
       if (!currentDevice?.serial_number) return null;
-      const end = new Date();
-      const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
+
+      let start: string;
+      let stop: string;
+
+      if (selectedPreset === -1) {
+        start = customStart ? new Date(customStart).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        stop = customEnd ? new Date(customEnd).toISOString() : new Date().toISOString();
+      } else {
+        const endDt = new Date();
+        const startDt = new Date(endDt.getTime() - selectedPreset * 60 * 60 * 1000);
+        start = startDt.toISOString();
+        stop = endDt.toISOString();
+      }
+
       return telemetryApi.history(currentDevice.serial_number, {
-        start: start.toISOString(),
-        stop: end.toISOString(),
+        start,
+        stop,
         limit: 100,
         order: "desc",
       }).then(r => r.data);
@@ -264,31 +157,76 @@ function ChartPanel({ deviceList }: { deviceList: any[] }) {
             <SelectTrigger className="w-[200px] rounded-xl border-none bg-muted/50">
               <SelectValue placeholder="Pilih device">
                 {deviceList.find((d) => d.guid === selectedGuid)?.alias || 
-                 deviceList.find((d) => d.guid === selectedGuid)?.name || 
+                 deviceList.find((d) => d.guid === selectedGuid)?.serial_number || 
                  "Pilih device"}
               </SelectValue>
             </SelectTrigger>
             <SelectContent className="min-w-[200px] z-[9999]">
               {deviceList.map((d) => (
                 <SelectItem key={d.guid} value={d.guid}>
-                  {d.alias || d.name || d.serial_number}
+                  {d.alias || d.serial_number}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Badge variant="outline" className="rounded-lg">{currentDevice?.serial_number || "-"}</Badge>
         </div>
-        <div className="flex flex-wrap items-center gap-1 mt-3">
-          {TIME_PRESETS.map((p) => (
+        <div className="space-y-4 mt-3">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {TIME_PRESETS.map((p) => (
+              <Button
+                key={p.hours}
+                variant={selectedPreset === p.hours ? "default" : "outline"}
+                size="xs"
+                onClick={() => setSelectedPreset(p.hours)}
+                className="rounded-lg h-7 text-[10px] px-2 sm:px-3"
+              >
+                {p.label}
+              </Button>
+            ))}
             <Button
-              key={p.hours}
-              variant={selectedPreset === p.hours ? "default" : "outline"}
+              variant={selectedPreset === -1 ? "default" : "outline"}
               size="xs"
-              onClick={() => setSelectedPreset(p.hours)}
+              onClick={() => setSelectedPreset(-1)}
+              className="rounded-lg h-7 text-[10px]"
             >
-              {p.label}
+              Custom
             </Button>
-          ))}
+          </div>
+
+          {selectedPreset === -1 && (
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] items-end gap-2 p-2 sm:p-3 bg-muted/20 rounded-xl border border-border/50 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-muted-foreground uppercase ml-1">Dari</label>
+                <div className="flex items-center gap-2 bg-background px-2 py-1.5 rounded-lg border border-border/50">
+                  <input
+                    type="datetime-local"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="bg-transparent border-none text-[11px] focus:ring-0 outline-none w-full min-w-0"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-muted-foreground uppercase ml-1">Hingga</label>
+                <div className="flex items-center gap-2 bg-background px-2 py-1.5 rounded-lg border border-border/50">
+                  <input
+                    type="datetime-local"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="bg-transparent border-none text-[11px] focus:ring-0 outline-none w-full min-w-0"
+                  />
+                </div>
+              </div>
+              <Button 
+                size="xs" 
+                className="h-9 sm:h-10 rounded-lg text-[10px] px-4 font-bold shadow-md shadow-primary/20 w-full lg:w-auto"
+                onClick={() => refetch()}
+              >
+                Terapkan
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -365,10 +303,14 @@ function ChartPanel({ deviceList }: { deviceList: any[] }) {
                   yaxis: {
                     labels: {
                       style: { fontSize: '10px', colors: '#94a3b8' },
+                      formatter: (val: number) => (val !== undefined ? val.toFixed(2) : ""),
                     },
                   },
                   tooltip: {
                     x: { format: 'dd MMM, HH:mm' },
+                    y: {
+                      formatter: (val: number) => (val !== undefined ? val.toFixed(2) : ""),
+                    },
                     theme: 'light',
                   },
                   grid: {

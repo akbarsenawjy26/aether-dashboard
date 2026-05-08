@@ -1,5 +1,9 @@
 "use client";
 
+import * as React from "react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -15,6 +19,8 @@ import {
   ChevronDown,
   ChevronRight,
   Menu,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -92,17 +98,26 @@ export function MobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
+  const { setTheme, resolvedTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>(["Dashboard", "Master Data"]);
+
+  const toggleTheme = () => {
+    setTheme(resolvedTheme === "dark" ? "light" : "dark");
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const initials = user?.name 
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) 
-    : "U";
+  const fullName = user ? `${user.first_name} ${user.last_name}`.trim() || user.email : "User";
+  const initials = fullName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -120,7 +135,7 @@ export function MobileNav() {
   return (
     <>
       {/* Mobile Header - Logo + Hamburger */}
-      <div className="flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
+      <div className="flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden [padding-top:env(safe-area-inset-top)]">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-lg shadow-primary/20">
             <Radio className="h-5 w-5" />
@@ -128,11 +143,27 @@ export function MobileNav() {
           <span className="font-heading text-base font-bold tracking-tight">Aether</span>
         </div>
 
-        <Sheet open={isOpen} onOpenChange={setIsOpen}>
-          <SheetTrigger className="h-9 w-9 inline-flex items-center justify-center rounded-md px-0 py-0 bg-transparent hover:bg-accent/50 outline-none">
-            <Menu className="h-5 w-5" />
-            <span className="sr-only">Menu</span>
-          </SheetTrigger>
+        <div className="flex items-center gap-1">
+          {/* Theme toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleTheme}
+            className="h-9 w-9 text-muted-foreground"
+          >
+            {mounted && (resolvedTheme === "dark" ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
+            ))}
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger className="h-9 w-9 inline-flex items-center justify-center rounded-md px-0 py-0 bg-transparent hover:bg-accent/50 outline-none">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Menu</span>
+            </SheetTrigger>
           <SheetContent side="left" className="w-[300px] p-0 bg-[#1a1a1a] border-white/5 flex flex-col text-white">
             <div className="flex h-16 items-center border-b border-white/10 px-6">
               <div className="flex items-center gap-3">
@@ -221,7 +252,7 @@ export function MobileNav() {
                   </Avatar>
                   <div className="flex flex-1 flex-col overflow-hidden">
                     <span className="truncate text-sm font-bold text-white">
-                      {user?.name ?? "User"}
+                      {fullName}
                     </span>
                     <span className="truncate text-[10px] text-white/40">
                       {user?.email ?? "user@example.com"}
@@ -233,7 +264,7 @@ export function MobileNav() {
                   <DropdownMenuGroup>
                     <DropdownMenuLabel className="font-normal px-2 py-2 border-b border-white/5 mb-1">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none text-white">{user?.name}</p>
+                        <p className="text-sm font-medium leading-none text-white">{fullName}</p>
                         <p className="text-xs leading-none text-white/50">{user?.email}</p>
                       </div>
                     </DropdownMenuLabel>
@@ -255,10 +286,11 @@ export function MobileNav() {
             </div>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
 
       {/* Bottom Tab Navigation - Mobile Only */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background lg:hidden pb-[env(safe-area-inset-bottom)]">
         <div className="flex h-16 items-center justify-around">
           <Link
             href="/dashboard/realtime"
@@ -280,16 +312,35 @@ export function MobileNav() {
             <History className="h-5 w-5" />
             <span className="text-[10px]">History</span>
           </Link>
-          <Link
-            href="/master-data/devices"
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 px-3 py-2 text-xs transition-colors min-w-[60px]",
-              isActive("/master-data") ? "text-primary" : "text-muted-foreground"
-            )}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            <span className="text-[10px]">Data</span>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 px-3 py-2 text-xs transition-colors min-w-[60px] border-none bg-transparent outline-none cursor-pointer",
+                isActive("/master-data") ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <LayoutDashboard className="h-5 w-5" />
+              <span className="text-[10px]">Data</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-56 mb-2 bg-[#252525] border-white/10 text-white shadow-2xl">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-white/40 px-3 py-2">Master Data</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/5" />
+                {navItems[1].children?.map((child) => (
+                  <DropdownMenuItem key={child.href} className="focus:bg-primary focus:text-white cursor-pointer py-0 px-0">
+                    <Link 
+                      href={child.href!} 
+                      className="flex items-center gap-3 w-full px-3 py-2.5"
+                      onClick={() => {}}
+                    >
+                      <span className="text-white/70 group-focus:text-white">{child.icon}</span>
+                      <span className="font-medium">{child.label}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </nav>
     </>

@@ -15,17 +15,17 @@ import { formatDate } from "@/lib/utils";
 import { useAuthStore } from "@/lib/stores/authStore";
 
 const createSchema = z.object({
-  name: z.string().min(2, "Nama minimal 2 karakter"),
+  first_name: z.string().min(2, "Nama depan minimal 2 karakter"),
+  last_name: z.string().optional(),
   email: z.string().email("Email tidak valid"),
   password: z.string().min(8, "Password minimal 8 karakter"),
-  role: z.enum(["admin", "operator", "viewer"]),
 });
 
 const updateSchema = z.object({
-  name: z.string().min(2, "Nama minimal 2 karakter").optional(),
+  first_name: z.string().min(2, "Nama depan minimal 2 karakter").optional(),
+  last_name: z.string().optional(),
   email: z.string().email("Email tidak valid").optional(),
   password: z.string().min(8, "Password minimal 8 karakter").optional(),
-  role: z.enum(["admin", "operator", "viewer"]).optional(),
 });
 
 const ROLES = [
@@ -75,21 +75,24 @@ export default function UsersPage() {
 
   const columns: ColumnDef<User>[] = [
     {
-      accessorKey: "name",
+      id: "name",
       header: "Nama",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-            <Users className="h-4 w-4 text-primary" />
+      cell: ({ row }) => {
+        const fullName = `${row.original.first_name} ${row.original.last_name}`.trim();
+        return (
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+              <Users className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-medium">{fullName || row.original.email}</p>
+              {row.original.guid === currentUser?.guid && (
+                <p className="text-xs text-primary">Anda</p>
+              )}
+            </div>
           </div>
-          <div>
-            <p className="font-medium">{row.original.name}</p>
-            {row.original.guid === currentUser?.guid && (
-              <p className="text-xs text-primary">Anda</p>
-            )}
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       accessorKey: "email",
@@ -99,11 +102,11 @@ export default function UsersPage() {
       ),
     },
     {
-      accessorKey: "role",
-      header: "Role",
+      accessorKey: "is_active",
+      header: "Status",
       cell: ({ row }) => (
-        <Badge variant="secondary" className={ROLE_COLORS[row.original.role]}>
-          {row.original.role}
+        <Badge variant={row.original.is_active ? "default" : "secondary"}>
+          {row.original.is_active ? "Aktif" : "Nonaktif"}
         </Badge>
       ),
     },
@@ -128,38 +131,38 @@ export default function UsersPage() {
   ];
 
   const createFields = [
-    { name: "name" as const, label: "Nama", type: "text" as const, required: true, placeholder: "John Doe" },
+    { name: "first_name" as const, label: "Nama Depan", type: "text" as const, required: true, placeholder: "John" },
+    { name: "last_name" as const, label: "Nama Belakang", type: "text" as const, required: false, placeholder: "Doe" },
     { name: "email" as const, label: "Email", type: "email" as const, required: true, placeholder: "john@email.com" },
     { name: "password" as const, label: "Password", type: "password" as const, required: true, placeholder: "Min. 8 karakter" },
-    { name: "role" as const, label: "Role", type: "select" as const, required: true, options: ROLES },
   ];
 
   const updateFields = [
-    { name: "name" as const, label: "Nama", type: "text" as const, placeholder: "John Doe" },
+    { name: "first_name" as const, label: "Nama Depan", type: "text" as const, placeholder: "John" },
+    { name: "last_name" as const, label: "Nama Belakang", type: "text" as const, placeholder: "Doe" },
     { name: "email" as const, label: "Email", type: "email" as const, placeholder: "john@email.com" },
     { name: "password" as const, label: "Password Baru", type: "password" as const, placeholder: "Kosongkan jika tidak diubah" },
-    { name: "role" as const, label: "Role", type: "select" as const, options: ROLES },
   ];
 
   const items = data?.items ?? [];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Users</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Kelola user — {data?.total ?? 0} user terdaftar
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Tambah User
         </Button>
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0 sm:p-6">
           <DataTable
             columns={columns}
             data={items}
@@ -193,7 +196,7 @@ export default function UsersPage() {
         onUpdate={async (guid, data) => updateMutation.mutateAsync({ guid, data })}
         onDelete={deleteMutation.mutateAsync}
         getGuid={(row) => row.guid}
-        itemName={(row) => row.name}
+        itemName={(row) => `${row.first_name} ${row.last_name}`.trim() || row.email}
       />
     </div>
   );

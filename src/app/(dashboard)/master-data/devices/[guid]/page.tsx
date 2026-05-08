@@ -85,16 +85,16 @@ export default function DeviceDetailPage() {
             <HardDrive className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{device.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{device.alias || device.serial_number}</h1>
             <p className="text-muted-foreground font-mono text-sm">
               {device.serial_number}
             </p>
           </div>
         </div>
-        <Badge variant="outline" className={statusColors[device.status]}>
+        <Badge variant="outline" className={statusColors[device.status as keyof typeof statusColors]}>
           {device.status}
         </Badge>
-        <Badge variant="outline" className={typeColors[device.type]}>
+        <Badge variant="outline" className={typeColors[device.type as keyof typeof typeColors] || typeColors.other}>
           {device.type}
         </Badge>
       </div>
@@ -128,19 +128,14 @@ export default function DeviceDetailPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Lokasi
+              Catatan
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            {device.location_name ? (
-              <>
-                <p className="font-medium">{device.location_name}</p>
-                <p className="text-muted-foreground text-xs">
-                  GUID: {device.location_guid}
-                </p>
-              </>
+            {device.notes ? (
+              <p className="text-muted-foreground">{device.notes}</p>
             ) : (
-              <p className="text-muted-foreground">Belum ditetapkan</p>
+              <p className="text-muted-foreground text-xs italic">Tidak ada catatan</p>
             )}
           </CardContent>
         </Card>

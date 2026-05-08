@@ -11,9 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { telemetryApi } from "@/lib/api/telemetry";
 import { deviceApi } from "@/lib/api/devices";
 import dynamic from "next/dynamic";
-import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio, Bell } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Wifi, WifiOff, Clock, Radio, Bell, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertSettings } from "@/components/device/AlertSettings";
+import { toast } from "sonner";
 
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 import { cn } from "@/lib/utils";
@@ -66,6 +67,8 @@ export default function DeviceDetailPage() {
 
   // History state
   const [selectedPreset, setSelectedPreset] = useState(24);
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [selectedSeries, setSelectedSeries] = useState<string[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -121,19 +124,32 @@ export default function DeviceDetailPage() {
   }, []);
 
   // Fetch history with TanStack Query
-  const end = new Date();
-  const start = new Date(end.getTime() - selectedPreset * 60 * 60 * 1000);
-
   const { isLoading: historyLoading, data: historyResponse, refetch: refetchHistory } = useQuery({
-    queryKey: ["telemetry-history", deviceSn, selectedPreset, historyPage, limit],
-    queryFn: () =>
-      telemetryApi.history(deviceSn!, {
-        start: start.toISOString(),
-        stop: end.toISOString(),
+    queryKey: ["telemetry-history", deviceSn, selectedPreset, customStart, customEnd, historyPage, limit],
+    queryFn: () => {
+      let start: string;
+      let stop: string;
+
+      if (selectedPreset === -1) {
+        // Custom range
+        start = customStart ? new Date(customStart).toISOString() : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        stop = customEnd ? new Date(customEnd).toISOString() : new Date().toISOString();
+      } else {
+        // Preset range
+        const endDt = new Date();
+        const startDt = new Date(endDt.getTime() - selectedPreset * 60 * 60 * 1000);
+        start = startDt.toISOString();
+        stop = endDt.toISOString();
+      }
+
+      return telemetryApi.history(deviceSn!, {
+        start,
+        stop,
         limit: limit,
         order: "desc",
         page: historyPage,
-      }),
+      });
+    },
     enabled: !!deviceSn,
     staleTime: 0,
   });
@@ -142,8 +158,7 @@ export default function DeviceDetailPage() {
   useEffect(() => {
     if (deviceGuid) refetchDevice();
     if (deviceSn) refetchHistory();
-    router.refresh();
-  }, [deviceGuid, deviceSn, refetchDevice, refetchHistory, router]);
+  }, [deviceGuid, deviceSn, refetchDevice, refetchHistory]);
 
   // Transform history response to chart data
   const historyRecords = historyResponse?.data?.data ?? [];
@@ -240,31 +255,69 @@ export default function DeviceDetailPage() {
     setHistoryPage(1); // reset page when changing time range
   };
 
+  const exportToCSV = () => {
+    if (tableData.length === 0) {
+      toast.error("Tidak ada data untuk diekspor");
+      return;
+    }
+
+    try {
+      // Prepare headers
+      const headers = ["Timestamp", ...availableSeries];
+      
+      // Prepare rows
+      const rows = tableData.map(record => {
+        const timestamp = new Date(record.timestamp).toLocaleString("id-ID");
+        const values = availableSeries.map(key => {
+          const val = record.fields[key];
+          return val !== undefined ? val : "";
+        });
+        return [timestamp, ...values].join(",");
+      });
+
+      const csvContent = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `telemetry_${deviceSn || "export"}_${new Date().getTime()}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Data berhasil diekspor ke CSV");
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Gagal mengekspor data");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Device Detail</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="outline" className="font-mono">{deviceSn?? "-"}</Badge>
+          <div className="overflow-hidden">
+            <h1 className="text-xl sm:text-3xl font-bold tracking-tight truncate">Device Detail</h1>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <Badge variant="outline" className="font-mono text-[10px] sm:text-xs truncate">{deviceSn?? "-"}</Badge>
               {deviceData ? (
-                <Badge variant={deviceData.isStale ? "secondary" : "default"}>
+                <Badge variant={deviceData.isStale ? "secondary" : "default"} className="text-[10px] sm:text-xs">
                   {deviceData.isStale ? "Stale" : "Live"}
                 </Badge>
               ) : null}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end">
           <Badge
             variant="outline"
             className={cn(
-              "gap-1.5 px-3 py-1",
+              "gap-1.5 px-3 py-1 text-xs",
               connectionStatus === "connected" && "text-green-500",
               connectionStatus === "connecting" && "text-yellow-500",
               connectionStatus === "disconnected" && "text-red-500"
@@ -275,29 +328,31 @@ export default function DeviceDetailPage() {
             ) : (
               <WifiOff className="h-4 w-4" />
             )}
-            {connectionStatus === "connected" ? "Terhubung" : 
-             connectionStatus === "connecting" ? "Menghubungkan..." : "Terputus"}
+            <span className="whitespace-nowrap">
+              {connectionStatus === "connected" ? "Terhubung" : 
+               connectionStatus === "connecting" ? "Menghubungkan..." : "Terputus"}
+            </span>
           </Badge>
         </div>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <div className="sticky top-0 z-10 pt-2 pb-4 bg-background/80 backdrop-blur-sm">
+        <div className="sticky top-0 z-30 pt-2 pb-4 bg-background/80 backdrop-blur-sm">
           <Card className="shadow-lg border-primary/5 p-1">
-            <TabsList className="w-full justify-start bg-muted/20 h-auto p-0 rounded-2xl">
+            <TabsList className="w-full justify-start bg-muted/20 h-auto p-1 rounded-2xl flex-wrap">
               <TabsTrigger 
                 value="overview" 
-                className="flex-1 gap-3 py-4 px-12 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50 hover:text-foreground rounded-2xl transition-all duration-300"
+                className="flex-1 gap-2 sm:gap-3 py-3 sm:py-4 px-4 sm:px-12 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50 hover:text-foreground rounded-2xl transition-all duration-300"
               >
-                <Radio className="h-5 w-5" /> 
-                <span className="font-bold tracking-wider text-sm">OVERVIEW</span>
+                <Radio className="h-4 w-4 sm:h-5 sm:w-5" /> 
+                <span className="font-bold tracking-wider text-[10px] sm:text-sm">OVERVIEW</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="alerts" 
-                className="flex-1 gap-3 py-4 px-12 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50 hover:text-foreground rounded-2xl transition-all duration-300"
+                className="flex-1 gap-2 sm:gap-3 py-3 sm:py-4 px-4 sm:px-12 text-muted-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50 hover:text-foreground rounded-2xl transition-all duration-300"
               >
-                <Bell className="h-5 w-5" /> 
-                <span className="font-bold tracking-wider text-sm">ALERT SETTINGS</span>
+                <Bell className="h-4 w-4 sm:h-5 sm:w-5" /> 
+                <span className="font-bold tracking-wider text-[10px] sm:text-sm">ALERTS</span>
               </TabsTrigger>
             </TabsList>
           </Card>
@@ -361,19 +416,64 @@ export default function DeviceDetailPage() {
           </CardHeader>
           <CardContent>
             {/* Controls */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              <div className="flex gap-2">
-                {TIME_PRESETS.map((preset) => (
+            <div className="space-y-4 mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {TIME_PRESETS.map((preset) => (
+                    <Button
+                      key={preset.hours}
+                      variant={selectedPreset === preset.hours ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handlePresetChange(preset.hours)}
+                      className="text-[10px] sm:text-xs h-8 px-2 sm:px-3"
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
                   <Button
-                    key={preset.hours}
-                    variant={selectedPreset === preset.hours ? "default" : "outline"}
+                    variant={selectedPreset === -1 ? "default" : "outline"}
                     size="sm"
-                    onClick={() => handlePresetChange(preset.hours)}
+                    onClick={() => handlePresetChange(-1)}
+                    className="text-[10px] sm:text-xs h-8"
                   >
-                    {preset.label}
+                    Custom
                   </Button>
-                ))}
+                </div>
               </div>
+
+              {selectedPreset === -1 && (
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] items-end gap-2 p-2 sm:p-3 bg-muted/20 rounded-xl border border-border/50 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase ml-1">Dari</label>
+                    <div className="flex items-center gap-2 bg-background px-2 py-1.5 rounded-lg border border-border/50">
+                      <input
+                        type="datetime-local"
+                        value={customStart}
+                        onChange={(e) => setCustomStart(e.target.value)}
+                        className="bg-transparent border-none text-[11px] sm:text-xs focus:ring-0 outline-none w-full min-w-0"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-bold text-muted-foreground uppercase ml-1">Hingga</label>
+                    <div className="flex items-center gap-2 bg-background px-2 py-1.5 rounded-lg border border-border/50">
+                      <input
+                        type="datetime-local"
+                        value={customEnd}
+                        onChange={(e) => setCustomEnd(e.target.value)}
+                        className="bg-transparent border-none text-[11px] sm:text-xs focus:ring-0 outline-none w-full min-w-0"
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="h-9 sm:h-10 rounded-lg text-xs px-4 font-bold shadow-md shadow-primary/20 w-full lg:w-auto"
+                    onClick={() => refetchHistory()}
+                  >
+                    Terapkan
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Series Toggle */}
@@ -441,10 +541,14 @@ export default function DeviceDetailPage() {
                     yaxis: {
                       labels: {
                         style: { fontSize: '11px', colors: '#94a3b8' },
+                        formatter: (val: number) => (val !== undefined ? val.toFixed(2) : ""),
                       },
                     },
                     tooltip: {
                       x: { format: 'dd MMM, HH:mm' },
+                      y: {
+                        formatter: (val: number) => (val !== undefined ? val.toFixed(2) : ""),
+                      },
                       theme: 'light',
                     },
                     grid: {
@@ -467,15 +571,25 @@ export default function DeviceDetailPage() {
         {/* Data Table */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Data Table</CardTitle>
-                <CardDescription>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">Data Table</CardTitle>
+                <CardDescription className="text-[10px] sm:text-xs truncate">
                   {tableData.length > 0
-                    ? `${tableData.length} records · Halaman ${historyPage}`
+                    ? `${tableData.length} records`
                     : "Tidak ada data"}
                 </CardDescription>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-1.5 h-8 font-bold border-primary/20 hover:bg-primary hover:text-white transition-all shadow-sm text-[10px] sm:text-xs px-2 sm:px-3"
+                onClick={exportToCSV}
+                disabled={tableData.length === 0}
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>CSV</span>
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -487,42 +601,49 @@ export default function DeviceDetailPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="rounded-xl overflow-hidden border-none shadow-none">
-                  <table className="w-full text-sm border-collapse">
-                    <thead className="bg-muted/50 border-none">
-                      <tr>
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          Timestamp
-                        </th>
-                        {availableSeries.map((key) => (
-                          <th key={key} className="px-6 py-4 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            {key}
+                <div className="rounded-xl overflow-hidden border border-border/50 bg-card/50">
+                  <div className="overflow-x-auto custom-scrollbar">
+                    <table className="w-full text-sm border-collapse min-w-[600px]">
+                      <thead className="bg-muted/50 border-b border-border">
+                        <tr>
+                          <th className="sticky left-0 z-20 bg-muted/95 backdrop-blur-sm px-3 py-3 text-left text-[9px] font-bold text-muted-foreground uppercase tracking-widest border-r border-border/50 w-[90px] min-w-[90px]">
+                            Timestamp
                           </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-none">
-                      {tableData.map((record, i) => (
-                        <tr key={i} className="hover:bg-muted/50 even:bg-muted/30 transition-colors h-16 border-none">
-                          <td className="px-6 py-4 text-center font-mono text-xs">
-                            {formatTimestamp(record.timestamp)}
-                          </td>
-                          {availableSeries.map((key) => {
-                            const val = record.fields[key];
-                            return (
-                              <td key={key} className="px-6 py-4 text-center font-mono text-xs">
-                                {val !== undefined
-                                  ? typeof val === "number"
-                                    ? val.toFixed(4)
-                                    : String(val)
-                                  : "-"}
-                              </td>
-                            );
-                          })}
+                          {availableSeries.map((key) => (
+                            <th key={key} className="px-6 py-4 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest min-w-[120px]">
+                              {key}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {tableData.map((record, i) => (
+                          <tr key={i} className="hover:bg-muted/50 even:bg-muted/10 transition-colors h-14">
+                            <td className="sticky left-0 z-10 bg-card/95 backdrop-blur-sm px-3 py-3 text-left font-mono text-[9px] sm:text-xs border-r border-border/50 whitespace-nowrap">
+                              {formatTimestamp(record.timestamp)}
+                            </td>
+                            {availableSeries.map((key) => {
+                              const val = record.fields[key];
+                              return (
+                                <td key={key} className="px-6 py-3 text-center font-mono text-xs whitespace-nowrap">
+                                  <span className={cn(
+                                    "px-2 py-1 rounded-md bg-muted/30",
+                                    typeof val === "number" && "text-primary font-bold"
+                                  )}>
+                                    {val !== undefined
+                                      ? typeof val === "number"
+                                        ? val.toFixed(2)
+                                        : String(val)
+                                      : "-"}
+                                  </span>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 {/* Pagination below table */}

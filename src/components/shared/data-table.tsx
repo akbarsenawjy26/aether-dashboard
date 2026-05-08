@@ -39,7 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, ArrowUpDown, Eye, Pencil, Trash2, MoreHorizontal, Columns3 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Eye, Pencil, Trash2, MoreHorizontal, Columns3, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> {
@@ -110,8 +110,8 @@ export function DataTable<TData, TValue>({
     const firstCell = displayCells[0];
     const secondCell = displayCells[1];
     const badgeCells = displayCells.filter((cell) => {
-      const header = String(cell.column.columnDef.header ?? "");
-      return ["Status", "Tipe", "Role"].includes(header);
+      const header = cell.column.columnDef.header;
+      return typeof header === "string" && ["Status", "Tipe", "Role"].includes(header);
     });
 
     return (
@@ -156,28 +156,31 @@ export function DataTable<TData, TValue>({
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 sm:px-0 sm:py-0">
         {/* Search */}
-        {searchKey && (
-          <Input
-            placeholder={searchPlaceholder}
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="max-w-sm"
-          />
+        {(searchKey || searchPlaceholder) && (
+          <div className="relative w-full sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={searchPlaceholder}
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              className="pl-9 w-full h-9"
+            />
+          </div>
         )}
 
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           {/* Column visibility */}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground px-3 py-2 h-8 w-full sm:w-auto"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background text-sm font-medium hover:bg-accent hover:text-accent-foreground px-3 py-2 h-9 w-full sm:w-auto"
                 >
                   <Columns3 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Columns</span>
+                  <span className="sm:inline">Columns</span>
                 </button>
               }
             />
@@ -191,7 +194,9 @@ export function DataTable<TData, TValue>({
                     checked={column.getIsVisible()}
                     onCheckedChange={(value) => column.toggleVisibility(!!value)}
                   >
-                    {String(column.columnDef.header)}
+                    {typeof column.columnDef.header === "string"
+                      ? column.columnDef.header
+                      : column.id}
                   </DropdownMenuCheckboxItem>
                 ))}
             </DropdownMenuContent>
@@ -299,29 +304,32 @@ export function DataTable<TData, TValue>({
 
       {/* Pagination */}
       {pagination && (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-sm text-muted-foreground">
-            Menampilkan{" "}
-            {(pagination.page - 1) * pagination.limit + 1}–
-            {Math.min(pagination.page * pagination.limit, pagination.total)} dari{" "}
-            {pagination.total} data
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-4 sm:px-0 sm:py-0">
+          <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+            Menampilkan <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span>–
+            <span className="font-medium">{Math.min(pagination.page * pagination.limit, pagination.total)}</span> dari{" "}
+            <span className="font-medium">{pagination.total}</span> data
           </div>
-          <div className="flex items-center gap-2">
-            <Select
-              value={String(pagination.limit)}
-              onValueChange={(v) => pagination.onLimitChange(Number(v))}
-            >
-              <SelectTrigger className="h-8 w-20">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {pageSizes.map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size} / hal
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          
+          <div className="flex flex-col xs:flex-row items-center gap-3 sm:gap-6 order-1 sm:order-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">Baris per hal:</span>
+              <Select
+                value={String(pagination.limit)}
+                onValueChange={(v) => pagination.onLimitChange(Number(v))}
+              >
+                <SelectTrigger className="h-8 w-[70px] sm:w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizes.map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="flex items-center gap-1">
               <Button
@@ -331,7 +339,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => pagination.onPageChange(1)}
                 disabled={pagination.page <= 1}
               >
-                {"<<"}
+                <ChevronsLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
@@ -343,9 +351,9 @@ export function DataTable<TData, TValue>({
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              <span className="text-sm px-2">
-                Hal. {pagination.page} / {totalPages}
-              </span>
+              <div className="flex items-center justify-center min-w-[80px] text-xs sm:text-sm font-medium">
+                {pagination.page} / {totalPages}
+              </div>
 
               <Button
                 variant="outline"
@@ -363,7 +371,7 @@ export function DataTable<TData, TValue>({
                 onClick={() => pagination.onPageChange(totalPages)}
                 disabled={pagination.page >= totalPages}
               >
-                {">>"}
+                <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
           </div>

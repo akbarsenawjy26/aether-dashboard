@@ -26,7 +26,7 @@ const PAGE_SIZE = 100;
 const SERIES_COLORS = ["#10392d", "#3b82f6", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6"];
 
 interface ChartPanelProps {
-  deviceList: Array<{ guid: string; serial_number: string; name: string }>;
+  deviceList: Array<{ guid: string; serial_number: string; alias?: string }>;
   initialDeviceGuid?: string;
   initialDeviceSn?: string;
   showDeviceSelector?: boolean;
@@ -114,13 +114,13 @@ function ChartPanel({ deviceList, initialDeviceGuid, initialDeviceSn, showDevice
                 <SelectContent>
                   {deviceList.map((d) => (
                     <SelectItem key={d.guid} value={d.guid}>
-                      {d.name} ({d.serial_number})
+                      {d.alias || d.serial_number} ({d.serial_number})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             ) : (
-              <CardTitle>{currentDevice?.name || "Loading..."}</CardTitle>
+              <CardTitle>{currentDevice?.alias || "Loading..."}</CardTitle>
             )}
           </div>
           <Badge variant="outline">{currentDevice?.serial_number}</Badge>
@@ -212,10 +212,14 @@ function ChartPanel({ deviceList, initialDeviceGuid, initialDeviceSn, showDevice
                   yaxis: {
                     labels: {
                       style: { fontSize: '11px', colors: '#64748b' },
+                      formatter: (val: number) => (val !== undefined ? val.toFixed(2) : ""),
                     },
                   },
                   tooltip: {
                     x: { format: 'dd MMM, HH:mm' },
+                    y: {
+                      formatter: (val: number) => (val !== undefined ? val.toFixed(2) : ""),
+                    },
                     theme: 'light',
                   },
                   grid: {
@@ -271,7 +275,7 @@ export default function HistoryPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Detail History</h1>
             <p className="text-muted-foreground">
-              {currentDevice?.name || "Loading..."} - {currentDevice?.serial_number}
+              {currentDevice?.alias || "Loading..."} - {currentDevice?.serial_number}
             </p>
           </div>
         </div>

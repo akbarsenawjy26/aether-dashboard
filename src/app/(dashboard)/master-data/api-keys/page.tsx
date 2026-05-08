@@ -45,9 +45,10 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const createSchema = z.object({
-  name: z.string().min(1, "Nama wajib diisi"),
+  notes: z.string().min(1, "Catatan wajib diisi"),
   device_guid: z.string().optional(),
-  expires_at: z.string().optional(),
+  expire_date: z.string().optional(),
+  is_active: z.boolean().optional(),
 });
 
 type CreateForm = z.infer<typeof createSchema>;
@@ -86,7 +87,7 @@ export default function APIKeysPage() {
       queryClient.invalidateQueries({ queryKey: ["api-keys"] });
       setCreateOpen(false);
       // Show the full key ONCE
-      const key = response.data.data.key_full;
+      const key = response.data.data.key;
       if (key) {
         setNewlyCreatedKey(key);
         setShowKey(true);
@@ -114,30 +115,34 @@ export default function APIKeysPage() {
 
   const form = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: "", device_guid: "", expires_at: "" },
+    defaultValues: { notes: "", device_guid: "", expire_date: "", is_active: true },
   });
+
+  const onSubmit = (data: CreateForm) => {
+    const payload: CreateAPIKeyRequest = {
+      ...data,
+      expire_date: data.expire_date ? new Date(data.expire_date).toISOString() : undefined,
+    };
+    createMutation.mutate(payload);
+  };
 
   const columns: ColumnDef<APIKey>[] = [
     {
-      accessorKey: "name",
-      header: "Nama",
+      accessorKey: "notes",
+      header: "Catatan",
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <Key className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-medium">{row.original.name}</span>
+          <span className="font-medium">{row.original.notes}</span>
         </div>
       ),
     },
     {
       accessorKey: "key_masked",
       header: "API Key",
-      cell: ({ row }) => (
-        <code className="text-xs font-mono text-muted-foreground">
-          {row.original.key_masked}
-        </code>
-      ),
+      cell: ({ row }) => <ApiKeyCell value={row.original.key_masked} />,
     },
     {
       accessorKey: "device_sn",
@@ -159,11 +164,11 @@ export default function APIKeysPage() {
       ),
     },
     {
-      accessorKey: "expires_at",
+      accessorKey: "expire_date",
       header: "Berlaku Hingga",
       cell: ({ row }) =>
-        row.original.expires_at ? (
-          formatDate(row.original.expires_at)
+        row.original.expire_date ? (
+          formatDate(row.original.expire_date)
         ) : (
           <span className="text-muted-foreground">Tidak terbatas</span>
         ),
@@ -192,7 +197,7 @@ export default function APIKeysPage() {
     ...(Array.isArray(deviceData)
       ? deviceData.map((d) => ({
           value: d.guid,
-          label: d.alias || d.name || d.serial_number,
+          label: d.alias || d.serial_number,
         }))
       : []),
   ];
@@ -250,7 +255,7 @@ export default function APIKeysPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke API Key?</AlertDialogTitle>
             <AlertDialogDescription>
-              API key <strong>{selectedRow?.name}</strong> akan dinonaktifkan. Device yang menggunakan key ini akan kehilangan akses.
+              API key dengan catatan <strong>{selectedRow?.notes}</strong> akan dinonaktifkan. Device yang menggunakan key ini akan kehilangan akses.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -267,14 +272,14 @@ export default function APIKeysPage() {
       </AlertDialog>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">API Keys</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">API Keys</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Kelola API key untuk device authentication — {data?.total ?? 0} key
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Buat API Key
         </Button>
@@ -291,15 +296,15 @@ export default function APIKeysPage() {
           </DialogHeader>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit((d) => createMutation.mutate(d))}
+              onSubmit={form.handleSubmit((d) => onSubmit(d as CreateForm))}
               className="space-y-4"
             >
               <FormField
                 control={form.control}
-                name="name"
+                name="notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nama Key <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>Catatan Key <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input placeholder="Production Key" {...field} />
                     </FormControl>
@@ -334,7 +339,7 @@ export default function APIKeysPage() {
               />
               <FormField
                 control={form.control}
-                name="expires_at"
+                name="expire_date"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Berlaku Hingga (Opsional)</FormLabel>
@@ -362,11 +367,11 @@ export default function APIKeysPage() {
 
       {/* Table */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0 sm:p-6">
           <DataTable
             columns={columns}
             data={items}
-            searchPlaceholder="Cari nama API key..."
+            searchPlaceholder="Cari catatan API key..."
             isLoading={isLoading || isFetching}
             pagination={{
               page,
@@ -378,6 +383,53 @@ export default function APIKeysPage() {
           />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Sub-component for API Key cell to handle local show/hide state
+function ApiKeyCell({ value }: { value: string }) {
+  const [show, setShow] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    toast.success("API key tersalin");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShow(!show);
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <code className="text-xs font-mono text-muted-foreground bg-muted/50 px-2 py-1 rounded min-w-[120px]">
+        {show ? value : "••••••••••••••••"}
+      </code>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={handleToggle}
+          title={show ? "Sembunyikan" : "Tampilkan"}
+        >
+          {show ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={handleCopy}
+          title="Salin"
+        >
+          {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+        </Button>
+      </div>
     </div>
   );
 }

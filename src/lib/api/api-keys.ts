@@ -2,12 +2,12 @@ import { apiClient } from "./client";
 
 export interface APIKey {
   guid: string;
-  name: string;
+  notes: string;
   key_masked: string;
-  key_full?: string; // only shown once at creation
+  key?: string;
   device_guid?: string;
   device_sn?: string;
-  expires_at?: string;
+  expire_date?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -28,9 +28,10 @@ export interface APIKeyListResponse {
 }
 
 export interface CreateAPIKeyRequest {
-  name: string;
+  notes: string;
   device_guid?: string;
-  expires_at?: string;
+  expire_date?: string;
+  is_active?: boolean;
 }
 
 export const apiKeyApi = {

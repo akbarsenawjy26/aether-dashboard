@@ -3,9 +3,7 @@ import { apiClient } from "./client";
 export interface Location {
   guid: string;
   name: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
+  notes?: string;
   device_count?: number;
   created_at: string;
   updated_at: string;
@@ -27,9 +25,7 @@ export interface LocationListResponse {
 
 export interface CreateLocationRequest {
   name: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
+  notes?: string;
 }
 
 export const locationApi = {

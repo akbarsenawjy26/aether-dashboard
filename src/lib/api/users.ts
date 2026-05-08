@@ -2,9 +2,10 @@ import { apiClient } from "./client";
 
 export interface User {
   guid: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
-  role: "admin" | "operator" | "viewer";
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -24,10 +25,10 @@ export interface UserListResponse {
 }
 
 export interface CreateUserRequest {
-  name: string;
+  first_name: string;
+  last_name?: string;
   email: string;
-  password: string;
-  role: User["role"];
+  password?: string;
 }
 
 export const userApi = {

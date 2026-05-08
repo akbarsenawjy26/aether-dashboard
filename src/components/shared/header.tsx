@@ -37,12 +37,13 @@ export function Header() {
     ? "Master Data" 
     : null;
 
-  const initials = user?.name
-    ?.split(" ")
+  const fullName = user ? `${user.first_name} ${user.last_name}`.trim() || user.email : "User";
+  const initials = fullName
+    .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2) ?? "U";
+    .slice(0, 2);
 
   return (
     <header className="flex h-16 items-center justify-between rounded-3xl bg-card px-6 shadow-md border-none transition-all duration-300">

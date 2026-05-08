@@ -121,11 +121,25 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
+  html {
+    /* Prevent text size adjustment after orientation change in iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    /* Use full height */
+    height: -webkit-fill-available;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  }
-  html {
-    font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+    /* Use full height */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    /* Disable tap highlight on mobile (Safari/Chrome mobile) */
+    -webkit-tap-highlight-color: transparent;
+    /* Remove default margin */
+    margin: 0;
   }
 }

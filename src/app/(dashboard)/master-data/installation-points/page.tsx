@@ -21,10 +21,9 @@ import { formatDate } from "@/lib/utils";
 
 const createSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi").max(100),
-  device_guid: z.string().optional(),
-  location_guid: z.string().optional(),
-  notes: z.string().optional(),
-  installed_at: z.string().optional(),
+  device_guid: z.string().min(1, "Device wajib dipilih"),
+  location_guid: z.string().min(1, "Lokasi wajib dipilih"),
+  notes: z.string().max(500).optional().or(z.literal("")),
 });
 
 const updateSchema = createSchema.partial();
@@ -123,20 +122,13 @@ export default function InstallationPointsPage() {
         row.original.location_name ?? <span className="text-muted-foreground">—</span>,
     },
     {
-      accessorKey: "installed_at",
-      header: "Tanggal Instalasi",
-      cell: ({ row }) =>
-        row.original.installed_at ? formatDate(row.original.installed_at) : <span className="text-muted-foreground">—</span>,
-    },
-    {
       accessorKey: "notes",
       header: "Catatan",
-      cell: ({ row }) =>
-        row.original.notes ? (
-          <span className="text-sm text-muted-foreground line-clamp-1">{row.original.notes}</span>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        ),
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground truncate max-w-[200px] inline-block">
+          {row.original.notes || "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "created_at",
@@ -147,13 +139,6 @@ export default function InstallationPointsPage() {
       id: "actions",
       cell: ({ row }) => (
         <ActionCell
-          onView={() =>
-            router.push(
-              row.original.device_sn
-                ? `/dashboard/history/${row.original.device_sn}`
-                : "#"
-            )
-          }
           onEdit={() => { setSelectedRow(row.original); setEditOpen(true); }}
           onDelete={() => { setSelectedRow(row.original); setDeleteOpen(true); }}
         />
@@ -162,7 +147,7 @@ export default function InstallationPointsPage() {
   ];
 
   const deviceOptions = Array.isArray(deviceData) 
-    ? deviceData.map((d) => ({ value: d.guid, label: d.alias || d.name })) 
+    ? deviceData.map((d) => ({ value: d.guid, label: d.alias || d.serial_number })) 
     : [];
   const locationOptions = Array.isArray(locationData) 
     ? locationData.map((l) => ({ value: l.guid, label: l.name })) 
@@ -184,7 +169,6 @@ export default function InstallationPointsPage() {
       options: locationOptions,
       onAddClick: () => setQuickLocationOpen(true)
     },
-    { name: "installed_at" as const, label: "Tanggal Instalasi", type: "text" as const, placeholder: "2026-01-15" },
     { name: "notes" as const, label: "Catatan", type: "textarea" as const, placeholder: "Catatan tambahan..." },
   ];
 
@@ -192,21 +176,21 @@ export default function InstallationPointsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Installation Points</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Installation Points</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Kelola installation point — {data?.total ?? 0} titik instalasi
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Tambah Installation Point
         </Button>
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0 sm:p-6">
           <DataTable
             columns={columns}
             data={items}
@@ -255,30 +239,17 @@ export default function InstallationPointsPage() {
         setDeleteOpen={() => {}}
         selectedRow={null}
         createFields={[
-          { name: "name", label: "Nama Device", type: "text", required: true, placeholder: "Sensor Suhu #1" },
+          { name: "alias", label: "Alias Device", type: "text", required: true, placeholder: "Sensor Ruang Server" },
           { name: "serial_number", label: "Serial Number", type: "text", required: true, placeholder: "SN-001" },
-          { name: "alias", label: "Alias", type: "text", placeholder: "Sensor Ruang Server" },
-          { 
-            name: "type", 
-            label: "Tipe", 
-            type: "select", 
-            required: true, 
-            options: [
-              { value: "sensor", label: "Sensor" },
-              { value: "gateway", label: "Gateway" },
-              { value: "controller", label: "Controller" },
-              { value: "other", label: "Other" },
-            ] 
-          },
+          { name: "type", label: "Tipe", type: "text", required: true, placeholder: "sensor_env" },
           { name: "notes", label: "Catatan", type: "textarea", placeholder: "Sensor untuk monitoring..." },
         ]}
         updateFields={[]}
         formSchema={{ 
           create: z.object({
-            name: z.string().min(1),
+            alias: z.string().min(1),
             serial_number: z.string().min(1),
-            alias: z.string().optional(),
-            type: z.string(),
+            type: z.string().min(1),
             notes: z.string().optional(),
           }), 
           update: z.object({}) 

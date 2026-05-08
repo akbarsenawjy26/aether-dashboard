@@ -71,8 +71,7 @@ export default function RealtimePage() {
   // Force refresh on mount (especially useful when coming back from detail page)
   useEffect(() => {
     refetchDevices();
-    router.refresh();
-  }, [refetchDevices, router]);
+  }, [refetchDevices]);
 
   useEffect(() => {
     if (devicesData?.items) {
@@ -230,36 +229,38 @@ export default function RealtimePage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Realtime</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Realtime</h1>
+          <p className="text-sm text-muted-foreground">
             Monitoring data telemetry secara real-time
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className={cn("gap-1.5 px-3 py-1", status.color)}>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Badge variant="outline" className={cn("gap-1.5 px-2 sm:px-3 py-1 text-[10px] sm:text-xs", status.color)}>
             {status.icon}
-            {status.label}
+            <span className={cn(connectionStatus === "connected" ? "hidden xs:inline" : "inline")}>{status.label}</span>
           </Badge>
-          <Button
-            variant={isPaused ? "default" : "outline"}
-            size="sm"
-            onClick={() => setIsPaused((p) => !p)}
-            className="gap-2"
-          >
-            {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-            {isPaused ? "Lanjut" : "Pause"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.location.reload()}
-            className="gap-2"
-          >
-            <RotateCw className="h-4 w-4" />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={isPaused ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsPaused((p) => !p)}
+              className="gap-2 h-8 sm:h-9"
+            >
+              {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+              <span className="hidden xs:inline">{isPaused ? "Lanjut" : "Pause"}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => window.location.reload()}
+              className="gap-2 h-8 sm:h-9"
+            >
+              <RotateCw className="h-4 w-4" />
+              <span className="hidden xs:inline">Refresh</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -340,38 +341,39 @@ function DeviceGroupCard({
     <Collapsible open={isOpen} onOpenChange={onToggleOpen}>
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="sm" onClick={onToggleOpen} className="p-0 h-auto">
-              {isOpen ? (
-                <ChevronDown className="h-5 w-5" />
-              ) : (
-                <ChevronRight className="h-5 w-5" />
-              )}
-            </Button>
+                {isOpen ? (
+                  <ChevronDown className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </Button>
               <div>
-                <CardTitle className="text-lg">{deviceLabel}</CardTitle>
-                <p className="text-sm text-muted-foreground">
+                <CardTitle className="text-base sm:text-lg">{deviceLabel}</CardTitle>
+                <p className="text-xs text-muted-foreground">
                   {devices.length} device{devices.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={devices.some((d) => d.isStale) ? "secondary" : "default"}>
+            <div className="flex items-center gap-2 justify-end">
+              <Badge variant={devices.some((d) => d.isStale) ? "secondary" : "default"} className="text-[10px] px-2 py-0">
                 {devices.filter((d) => !d.isStale).length} online
               </Badge>
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8 text-xs"
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleView();
                 }}
               >
                 {viewMode === "card" ? (
-                  <Table2 className="h-4 w-4 mr-1" />
+                  <Table2 className="h-3.5 w-3.5 mr-1" />
                 ) : (
-                  <LayoutGrid className="h-4 w-4 mr-1" />
+                  <LayoutGrid className="h-3.5 w-3.5 mr-1" />
                 )}
                 {viewMode === "card" ? "Table" : "Card"}
               </Button>
@@ -410,7 +412,7 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
 
   return (
     <Card className={cn(
-      "transition-all duration-300 relative hover:shadow-xl border-none group",
+      "transition-all duration-400 relative hover:shadow-2xl border-none group hover:-translate-y-1.5",
       "bg-white shadow-sm dark:bg-[#222222] dark:shadow-none dark:ring-1 dark:ring-white/5",
       data.isStale && "opacity-60"
     )}>
@@ -461,13 +463,13 @@ function DeviceCard({ data }: { data: DeviceCardData }) {
             </span>
           </div>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-7 text-xs"
+            className="h-8 text-xs font-semibold border-primary/20 hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 shadow-sm"
             onClick={() => router.push(`/dashboard/device/${snToGuid.get(data.device_sn)}`)}
           >
-            Detail
-            <ArrowRight className="h-3 w-3 ml-1" />
+            Lihat Detail
+            <ArrowRight className="h-3.5 w-3.5 ml-1.5 group-hover:translate-x-1 transition-transform" />
           </Button>
         </div>
       </CardContent>
@@ -493,31 +495,31 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
     });
 
   return (
-    <div className="rounded-xl overflow-hidden border-none bg-card/30 backdrop-blur-sm">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead className="bg-muted/50 border-none">
+    <div className="rounded-2xl overflow-hidden border border-border/50 bg-card/30 backdrop-blur-md shadow-xl">
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-sm border-collapse min-w-[1000px]">
+          <thead className="bg-muted/50 border-b border-border">
             <tr>
-              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Device Name</th>
-              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Device SN</th>
-              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Status</th>
+              <th className="sticky left-0 z-20 bg-muted/95 backdrop-blur-sm px-3 py-4 text-left font-bold text-muted-foreground uppercase tracking-widest text-[9px] border-r border-border/50 w-[120px] min-w-[120px]">Device Name</th>
+              <th className="px-6 py-4 text-center font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Device SN</th>
+              <th className="px-6 py-4 text-center font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Status</th>
               {allReadingKeys.map((key) => (
-                <th key={key} className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px] capitalize">
+                <th key={key} className="px-6 py-4 text-center font-bold text-muted-foreground uppercase tracking-widest text-[9px] capitalize min-w-[100px]">
                   {key}
                 </th>
               ))}
-              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Last Seen</th>
-              <th className="px-6 py-4 text-center font-semibold text-muted-foreground uppercase tracking-wider text-[10px]">Action</th>
+              <th className="px-6 py-4 text-center font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Last Seen</th>
+              <th className="px-6 py-4 text-center font-bold text-muted-foreground uppercase tracking-widest text-[9px]">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-none">
+          <tbody className="divide-y divide-border/30">
             {devices.map((device) => (
-              <tr key={device.device_sn} className={cn("hover:bg-muted/50 even:bg-muted/20 transition-colors h-16 border-none", device.isStale && "opacity-60")}>
-                <td className="px-6 py-4 text-center font-medium">
+              <tr key={device.device_sn} className={cn("hover:bg-primary/5 even:bg-muted/5 transition-colors h-16", device.isStale && "opacity-60")}>
+                <td className="sticky left-0 z-10 bg-card/95 backdrop-blur-sm px-3 py-4 text-left font-semibold border-r border-border/50 whitespace-nowrap text-[10px] sm:text-sm">
                   {device.device_name || "Sensor Node"}
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground uppercase tracking-wider">
+                  <span className="font-mono text-[10px] bg-muted/50 px-1.5 py-0.5 rounded text-muted-foreground uppercase tracking-wider">
                     {device.device_sn}
                   </span>
                 </td>
@@ -533,15 +535,17 @@ function DeviceTable({ devices }: { devices: DeviceCardData[] }) {
                   </Badge>
                 </td>
                 {allReadingKeys.map((key) => (
-                  <td key={key} className="px-6 py-4 text-center font-mono font-medium">
-                    {device.readings[key] !== undefined
-                      ? typeof device.readings[key] === "number"
-                        ? device.readings[key].toFixed(2)
-                        : device.readings[key]
-                      : "-"}
+                  <td key={key} className="px-6 py-4 text-center font-mono font-medium whitespace-nowrap">
+                    <span className="px-2 py-1 rounded-md bg-muted/20">
+                      {device.readings[key] !== undefined
+                        ? typeof device.readings[key] === "number"
+                          ? device.readings[key].toFixed(2)
+                          : device.readings[key]
+                        : "-"}
+                    </span>
                   </td>
                 ))}
-                <td className="px-6 py-4 text-center text-muted-foreground font-mono text-xs">
+                <td className="px-6 py-4 text-center text-muted-foreground font-mono text-[10px] whitespace-nowrap">
                   {formatTime(device.lastSeen)}
                 </td>
                 <td className="px-6 py-4 text-center">

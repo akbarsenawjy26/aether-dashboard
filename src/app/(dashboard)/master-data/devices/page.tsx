@@ -17,18 +17,16 @@ import { formatDate } from "@/lib/utils";
 
 // Zod schemas
 const createSchema = z.object({
-  name: z.string().min(1, "Nama wajib diisi").max(100),
   serial_number: z.string().min(1, "Serial number wajib diisi").max(50),
-  alias: z.string().max(100).optional().or(z.literal("")),
+  alias: z.string().min(1, "Alias wajib diisi").max(100),
+  type: z.string().min(1, "Tipe wajib diisi"),
   notes: z.string().max(500).optional().or(z.literal("")),
-  type: z.enum(["sensor", "gateway", "controller", "other"]),
-  location_guid: z.string().optional(),
 });
 
 const updateSchema = createSchema.partial();
 
 const DEVICE_TYPES = [
-  { value: "sensor", label: "Sensor" },
+  { value: "sensor_env", label: "Sensor Lingkungan" },
   { value: "gateway", label: "Gateway" },
   { value: "controller", label: "Controller" },
   { value: "other", label: "Lainnya" },
@@ -85,14 +83,14 @@ export default function DevicesPage() {
   // Table columns
   const columns: ColumnDef<Device>[] = [
     {
-      accessorKey: "name",
-      header: "Nama",
+      accessorKey: "alias",
+      header: "Alias / Nama",
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <HardDrive className="h-4 w-4 text-primary" />
           </div>
-          <span className="font-medium">{row.original.alias || row.original.name}</span>
+          <span className="font-medium">{row.original.alias || "No Alias"}</span>
         </div>
       ),
     },
@@ -124,9 +122,13 @@ export default function DevicesPage() {
       },
     },
     {
-      accessorKey: "location_name",
-      header: "Lokasi",
-      cell: ({ row }) => row.original.location_name ?? <span className="text-muted-foreground">—</span>,
+      accessorKey: "notes",
+      header: "Catatan",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground truncate max-w-[150px] inline-block">
+          {row.original.notes || "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "status",
@@ -173,9 +175,10 @@ export default function DevicesPage() {
     locationData?.map((loc) => ({ value: loc.guid, label: loc.name })) ?? [];
 
   const createFields = [
-    { name: "name" as const, label: "Nama Device", type: "text" as const, required: true, placeholder: "Sensor Suhu #1" },
+    { name: "alias" as const, label: "Alias Device", type: "text" as const, required: true, placeholder: "Sensor Ruang Server" },
     { name: "serial_number" as const, label: "Serial Number", type: "text" as const, required: true, placeholder: "SN-001" },
-    { name: "type" as const, label: "Tipe", type: "select" as const, required: true, options: DEVICE_TYPES },
+    { name: "type" as const, label: "Tipe", type: "text" as const, required: true, placeholder: "sensor_env" },
+    { name: "notes" as const, label: "Catatan", type: "textarea" as const, required: false, placeholder: "Sensor untuk monitoring..." },
   ];
 
   const updateFields = createFields;
@@ -186,14 +189,14 @@ export default function DevicesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Devices</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Devices</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Kelola device IoT — {data?.total ?? 0} total device
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Tambah Device
         </Button>
@@ -201,7 +204,7 @@ export default function DevicesPage() {
 
       {/* Table */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-0 sm:p-6">
           <DataTable
             columns={columns}
             data={items}
@@ -233,11 +236,11 @@ export default function DevicesPage() {
         createFields={createFields}
         updateFields={updateFields}
         formSchema={{ create: createSchema, update: updateSchema }}
-        onCreate={async (data) => createMutation.mutateAsync({ ...data, alias: data.name })}
-        onUpdate={async (guid, data) => updateMutation.mutateAsync({ guid, data: { ...data, alias: data.name } })}
+        onCreate={createMutation.mutateAsync}
+        onUpdate={async (guid, data) => updateMutation.mutateAsync({ guid, data })}
         onDelete={deleteMutation.mutateAsync}
         getGuid={(row) => row.guid}
-        itemName={(row) => row.name}
+        itemName={(row) => row.alias || row.serial_number}
       />
     </div>
   );
