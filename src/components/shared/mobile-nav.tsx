@@ -21,6 +21,7 @@ import {
   Menu,
   Sun,
   Moon,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -58,6 +59,11 @@ const navItems: NavItem[] = [
         label: "History",
         href: "/dashboard/history",
         icon: <History className="h-4 w-4" />,
+      },
+      {
+        label: "Alarms",
+        href: "/dashboard/alarms",
+        icon: <Bell className="h-4 w-4" />,
       },
     ],
   },
@@ -312,6 +318,16 @@ export function MobileNav() {
             <History className="h-5 w-5" />
             <span className="text-[10px]">History</span>
           </Link>
+          <Link
+            href="/dashboard/alarms"
+            className={cn(
+              "flex flex-col items-center justify-center gap-1 px-3 py-2 text-xs transition-colors min-w-[60px]",
+              isActive("/dashboard/alarms") ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <Bell className="h-5 w-5" />
+            <span className="text-[10px]">Alarms</span>
+          </Link>
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
@@ -319,8 +335,8 @@ export function MobileNav() {
                 isActive("/master-data") ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <LayoutDashboard className="h-5 w-5" />
-              <span className="text-[10px]">Data</span>
+              <Anchor className="h-5 w-5" />
+              <span className="text-[10px]">Master</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" side="top" className="w-56 mb-2 bg-[#252525] border-white/10 text-white shadow-2xl">
               <DropdownMenuGroup>

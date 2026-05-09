@@ -28,10 +28,11 @@ export function AlarmNotificationListener() {
     // Let's assume native works if we add it to query or if session exists.
     
     const connect = () => {
-      const url = new URL(SSE_URL);
-      url.searchParams.append("token", token); // Pass token in query as fallback
+      // Use window.location.origin as base for relative URLs
+      const url = new URL(SSE_URL, window.location.origin);
+      url.searchParams.append("token", token);
       
-      const es = new EventSource(url.toString());
+      const es = new EventSource(url.toString(), { withCredentials: true });
       eventSourceRef.current = es;
 
       es.onmessage = (event) => {

@@ -107,47 +107,83 @@ export function DataTable<TData, TValue>({
     const cells = row.getVisibleCells();
     const actionCell = cells.find((cell) => cell.column.id === "actions");
     const displayCells = cells.filter((cell) => cell.column.id !== "actions");
+    
     const firstCell = displayCells[0];
     const secondCell = displayCells[1];
+    
+    const badgeHeaders = ["Status", "Tipe", "Role", "Severity", "Status"];
     const badgeCells = displayCells.filter((cell) => {
       const header = cell.column.columnDef.header;
-      return typeof header === "string" && ["Status", "Tipe", "Role"].includes(header);
+      return typeof header === "string" && badgeHeaders.includes(header);
+    });
+
+    const detailCells = displayCells.filter((cell) => {
+      const header = cell.column.columnDef.header;
+      return cell !== firstCell && cell !== secondCell && !badgeCells.includes(cell);
     });
 
     return (
-      <Card key={row.id} className="mb-3 overflow-hidden">
-        <CardContent className="p-4">
-          {/* Title + Subtitle */}
-          <div className="mb-3">
-            {firstCell && (
-              <div className="mb-1 font-medium text-sm">
-                {flexRender(firstCell.column.columnDef.cell, firstCell.getContext())}
-              </div>
-            )}
-            {secondCell && (
-              <div className="text-xs text-muted-foreground">
-                {flexRender(secondCell.column.columnDef.cell, secondCell.getContext())}
+      <Card key={row.id} className="mb-4 overflow-hidden shadow-md border-border/40 bg-card hover:bg-muted/5 transition-all duration-200">
+        <CardContent className="p-0">
+          {/* Header Bar */}
+          <div className="bg-muted/30 px-5 py-3 border-b border-border/40 flex justify-between items-center">
+            <div className="space-y-0.5 min-w-0">
+              {firstCell && (
+                <div className="font-black text-[10px] text-muted-foreground/60 uppercase tracking-[0.2em] leading-none">
+                  {typeof firstCell.column.columnDef.header === 'string' ? firstCell.column.columnDef.header : firstCell.column.id}
+                </div>
+              )}
+              {firstCell && (
+                <div className="font-bold text-xs text-foreground truncate">
+                  {flexRender(firstCell.column.columnDef.cell, firstCell.getContext())}
+                </div>
+              )}
+            </div>
+            {actionCell && (
+              <div className="shrink-0 scale-90">
+                {flexRender(actionCell.column.columnDef.cell, actionCell.getContext())}
               </div>
             )}
           </div>
 
-          {/* Badges */}
-          {badgeCells.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-3">
-              {badgeCells.map((cell) => (
-                <div key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          {/* Body Section */}
+          <div className="p-5 space-y-4">
+            {secondCell && (
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 pt-0.5">
+                  {typeof secondCell.column.columnDef.header === 'string' ? secondCell.column.columnDef.header : secondCell.column.id}
+                </span>
+                <div className="text-xs font-bold text-foreground text-right">
+                  {flexRender(secondCell.column.columnDef.cell, secondCell.getContext())}
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Actions */}
-          {actionCell && actionCell.column.columnDef.cell && (
-            <div className="flex items-center gap-2">
-              {flexRender(actionCell.column.columnDef.cell, actionCell.getContext())}
-            </div>
-          )}
+            {detailCells.length > 0 && (
+              <div className="space-y-3 pt-3 border-t border-dashed border-border/50">
+                {detailCells.map((cell) => (
+                  <div key={cell.id} className="flex justify-between items-center gap-4">
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">
+                      {typeof cell.column.columnDef.header === 'string' ? cell.column.columnDef.header : cell.column.id}
+                    </span>
+                    <div className="text-[11px] font-bold text-foreground/80 text-right">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {badgeCells.length > 0 && (
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border/20">
+                {badgeCells.map((cell) => (
+                  <div key={cell.id} className="scale-[0.85] origin-right">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -205,11 +241,11 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* Mobile Card View - shown on < md screens */}
-      <div className="md:hidden space-y-1">
+      <div className="md:hidden space-y-2 px-4 pb-4">
         {isLoading ? (
           // Loading skeleton for cards
           Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="mb-3">
+            <Card key={i} className="mb-4">
               <CardContent className="p-4">
                 <div className="h-4 w-2/3 animate-pulse rounded bg-muted mb-2" />
                 <div className="h-3 w-1/2 animate-pulse rounded bg-muted mb-3" />

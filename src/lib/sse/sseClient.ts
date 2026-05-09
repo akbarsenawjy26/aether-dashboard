@@ -64,7 +64,7 @@ export class SSEClient {
     const finalUrl = token ? `${fullUrl}?token=${encodeURIComponent(token)}` : fullUrl;
 
     try {
-      this.eventSource = new EventSource(finalUrl);
+      this.eventSource = new EventSource(finalUrl, { withCredentials: true });
     } catch {
       this.isConnecting = false;
       this.onError?.("Failed to create EventSource");

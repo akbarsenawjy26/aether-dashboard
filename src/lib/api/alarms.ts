@@ -23,6 +23,8 @@ export interface ListAlarmParams {
   status?: string;
   limit?: number;
   page?: number;
+  start?: string;
+  stop?: string;
 }
 
 export interface AlarmStats {
